@@ -395,6 +395,26 @@ test("the companion toggles macOS click-through with hover interactivity", () =>
   ]);
 });
 
+test("share screen context does not exclude the floating pill from capture", () => {
+  const manager = new WindowManager();
+  const calls = [];
+  manager.mainWindow = {
+    isDestroyed: () => false,
+    setContentProtection: (value) => calls.push(value),
+  };
+
+  manager.setScreenContextProtection(true);
+  assert.deepEqual(calls, []);
+
+  manager._assistantPanelOpen = true;
+  manager._updateMainContentProtection();
+  assert.deepEqual(calls, [true]);
+
+  manager._assistantPanelOpen = false;
+  manager._updateMainContentProtection();
+  assert.deepEqual(calls, [true, false]);
+});
+
 test("the Agent companion window is created content-protected", () => {
   createdBrowserWindows.length = 0;
   const manager = new WindowManager();

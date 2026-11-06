@@ -1085,14 +1085,6 @@ export const useAudioRecording = (toast, options = {}) => {
       },
     });
 
-    // Keep overlay content protection in sync with the screen-context setting
-    // so the dictation pill stays out of captures (survives window recreation).
-    window.electronAPI.setScreenContextEnabled?.(getSettings().voiceAgentScreenContext);
-    // A policy refresh can flip the effective screen-context value mid-session;
-    // re-sync overlay content protection when it does.
-    const unsubscribePolicy = usePolicyStore.subscribe(() => {
-      window.electronAPI.setScreenContextEnabled?.(getSettings().voiceAgentScreenContext);
-    });
     window.electronAPI.getSttConfig?.().then((config) => {
       if (config?.success && audioManagerRef.current) {
         audioManagerRef.current.setSttConfig(config);
@@ -1184,7 +1176,6 @@ export const useAudioRecording = (toast, options = {}) => {
     // Cleanup
     return () => {
       reportLifecycle("idle");
-      unsubscribePolicy();
       disposeToggle?.();
       disposeVoiceAgentToggle?.();
       disposeTranslationToggle?.();

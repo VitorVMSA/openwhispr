@@ -210,14 +210,16 @@ class WindowManager {
 
   _updateMainContentProtection() {
     if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
-    this.mainWindow.setContentProtection(
-      Boolean(this._screenContextProtection || this._assistantPanelOpen)
-    );
+    // Only the open assistant panel is excluded. Share screen context used to
+    // set this for the whole time the setting was on. On Windows that calls
+    // SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE), which removes the
+    // floating pill from every capture, including VR desktop mirrors.
+    this.mainWindow.setContentProtection(Boolean(this._assistantPanelOpen));
   }
 
-  setScreenContextProtection(enabled) {
-    this._screenContextProtection = Boolean(enabled);
-    this._updateMainContentProtection();
+  setScreenContextProtection() {
+    // The renderer may still report the setting. It must not change the
+    // pill's display affinity.
   }
 
   // The pill window is created focusable:false so it never steals focus; the

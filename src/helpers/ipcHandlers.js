@@ -6564,10 +6564,10 @@ class IPCHandlers {
       return screenContextCapture.getAccessResult();
     });
 
-    // Preserve the renderer setting while app-wide content protection is
-    // temporarily disabled for screen recording.
-    ipcMain.handle("screen-context-set-enabled", (event, enabled) => {
-      this.windowManager?.setScreenContextProtection(enabled);
+    // Kept so older renderers can still call it. The floating pill is included
+    // in screen capture; this no longer sets WDA_EXCLUDEFROMCAPTURE.
+    ipcMain.handle("screen-context-set-enabled", () => {
+      this.windowManager?.setScreenContextProtection();
       return { success: true };
     });
 
