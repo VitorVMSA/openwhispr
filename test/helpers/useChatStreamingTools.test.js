@@ -144,13 +144,13 @@ test("a signed-out chat never offers them", async (t) => {
   assert.equal(offersConnectors(offeredTools[0]), false);
 });
 
-test("a free plan never offers them", async (t) => {
+test("a free plan still offers connector tools", async (t) => {
   const { captured, offeredTools } = await renderChatStreaming(t, CONNECTOR_SURFACE, {
     subscribed: false,
   });
   await captured.sendToAI("Email Josh", []);
-  assert.ok(offeredTools[0].length > 0);
-  assert.equal(offersConnectors(offeredTools[0]), false);
+  assert.ok(offeredTools[0].includes("email_draft"));
+  assert.ok(offeredTools[0].includes("find_contact"));
 });
 
 test("an org that turns connectors off mid-session removes them from the next send", async (t) => {
@@ -659,14 +659,14 @@ test("a chat that offers no connector tools never looks up or lists attendees", 
   assert.match(prompts[0], /Title: Kickoff/, "the note itself is still there");
 });
 
-test("a free plan's note chat never looks up or lists attendees", async (t) => {
+test("a free plan's note chat still lists the note's attendees", async (t) => {
   const { captured, lookups, prompts } = await renderNoteChat(t, CONNECTOR_SURFACE, {
     subscribed: false,
   });
   await captured.sendToAI("Draft a follow-up to everyone", []);
 
-  assert.deepEqual(lookups, []);
-  assert.doesNotMatch(prompts[0], /Meeting attendees/);
+  assert.deepEqual(lookups, [NOTE_MEETING]);
+  assert.match(prompts[0], /Meeting attendees/);
 });
 
 test("a chat that isn't about a note never looks up attendees", async (t) => {
@@ -879,16 +879,13 @@ test("signed out, the model is told to point the user at signing in", async (t) 
   );
 });
 
-test("on a free plan, the model still writes the email and then says a paid plan can send it", async (t) => {
+test("on a free plan, the model is not told that sending needs a paid plan", async (t) => {
   const { captured, sentMessages } = await renderChatStreaming(t, CONNECTOR_SURFACE, {
     subscribed: false,
   });
   await captured.sendToAI("Email Josh", []);
   const prompt = systemPromptOf(sentMessages[0]);
-  assert.match(
-    prompt,
-    /still write it in full in your reply, then end with one short sentence on how they can have you send it for them[^\n]*\n- Integrations \(Email, Slack, Linear, GitHub\): needs a paid OpenWhispr plan in Settings → Plan & Billing\./
-  );
+  assert.doesNotMatch(prompt, /paid OpenWhispr plan/);
   assert.doesNotMatch(prompt, /- Web search: (needs|turned|not)/);
 });
 

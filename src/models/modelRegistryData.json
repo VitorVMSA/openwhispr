@@ -341,10 +341,11 @@
       "baseUrl": "https://api.x.ai/v1",
       "models": [
         {
-          "id": "grok-stt",
-          "name": "Grok STT",
-          "description": "High-accuracy speech recognition by xAI",
-          "descriptionKey": "models.descriptions.transcription.xai_grok_stt"
+          "id": "grok-voice-transcribe-2.0",
+          "name": "Grok Voice Transcribe 2.0",
+          "description": "Best xAI speech-to-text",
+          "descriptionKey": "models.descriptions.transcription.xai_grok_voice_transcribe_2_0",
+          "streaming": true
         }
       ]
     },
@@ -867,6 +868,101 @@
           "name": "Gemma 4 26B MoE",
           "description": "Google's Gemma 4 MoE, 4B active params, 256K context",
           "descriptionKey": "models.descriptions.cloud.gemini_gemma_4_26b_a4b_it"
+        }
+      ]
+    },
+    {
+      "id": "xai",
+      "name": "xAI",
+      "defaultModel": "grok-4.7",
+      "models": [
+        {
+          "id": "grok-4.7",
+          "name": "Grok 4.7",
+          "description": "Flagship for code and chat, 500K context",
+          "descriptionKey": "models.descriptions.cloud.xai_grok_4_7",
+          "tokenParam": "max_tokens",
+          "supportsTemperature": false,
+          "supportsVision": true,
+          "reasoningEffort": {
+            "options": ["low", "medium", "high", "xhigh"],
+            "defaultValue": "high"
+          }
+        },
+        {
+          "id": "grok-4.6",
+          "name": "Grok 4.6",
+          "description": "Frontier coding and agent model, 500K context",
+          "descriptionKey": "models.descriptions.cloud.xai_grok_4_6",
+          "tokenParam": "max_tokens",
+          "supportsTemperature": false,
+          "supportsVision": true,
+          "reasoningEffort": {
+            "options": ["low", "medium", "high", "xhigh"],
+            "defaultValue": "high"
+          }
+        },
+        {
+          "id": "grok-4.5",
+          "name": "Grok 4.5",
+          "description": "Coding model for agentic work, 500K context",
+          "descriptionKey": "models.descriptions.cloud.xai_grok_4_5",
+          "tokenParam": "max_tokens",
+          "supportsTemperature": false,
+          "supportsVision": true,
+          "reasoningEffort": {
+            "options": ["low", "medium", "high", "xhigh"],
+            "defaultValue": "high"
+          }
+        },
+        {
+          "id": "grok-4.3",
+          "name": "Grok 4.3",
+          "description": "Fast model with tool calling, 1M context",
+          "descriptionKey": "models.descriptions.cloud.xai_grok_4_3",
+          "tokenParam": "max_tokens",
+          "supportsTemperature": false,
+          "supportsVision": true,
+          "reasoningEffort": {
+            "options": ["none", "low", "medium", "high", "xhigh"],
+            "defaultValue": "low"
+          }
+        },
+        {
+          "id": "grok-4.20-0309-reasoning",
+          "name": "Grok 4.20 Reasoning",
+          "description": "Fast reasoning model, 1M context",
+          "descriptionKey": "models.descriptions.cloud.xai_grok_4_20_0309_reasoning",
+          "tokenParam": "max_tokens",
+          "supportsTemperature": false,
+          "supportsVision": true
+        },
+        {
+          "id": "grok-4.20-0309-non-reasoning",
+          "name": "Grok 4.20",
+          "description": "Fast model without reasoning, 1M context",
+          "descriptionKey": "models.descriptions.cloud.xai_grok_4_20_0309_non_reasoning",
+          "tokenParam": "max_tokens",
+          "supportsTemperature": false,
+          "supportsVision": true
+        },
+        {
+          "id": "grok-build-0.1",
+          "name": "Grok Build 0.1",
+          "description": "Coding model, 256K context",
+          "descriptionKey": "models.descriptions.cloud.xai_grok_build_0_1",
+          "tokenParam": "max_tokens",
+          "supportsTemperature": false,
+          "supportsVision": true
+        },
+        {
+          "id": "grok-4.20-multi-agent-0309",
+          "name": "Grok 4.20 Multi-Agent",
+          "description": "Parallel agents for research, 1M context",
+          "descriptionKey": "models.descriptions.cloud.xai_grok_4_20_multi_agent_0309",
+          "tokenParam": "max_tokens",
+          "supportsTemperature": false,
+          "supportsVision": true
         }
       ]
     },

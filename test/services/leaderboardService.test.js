@@ -61,10 +61,7 @@ test("participation uses the account endpoint for reads, joins, and leaves", asy
     {
       method: "PATCH",
       path: "/api/analytics/participation",
-      body: {
-        enabled: true,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-      },
+      body: { enabled: true },
       public: false,
       expectedAuthGeneration: 7,
     },
@@ -552,10 +549,7 @@ test("an explicit join stays newer than a pending leave already in flight", asyn
       { method: "PATCH", body: { enabled: false } },
       {
         method: "PATCH",
-        body: {
-          enabled: true,
-          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        },
+        body: { enabled: true },
       },
       { method: "GET", body: undefined },
     ]

@@ -639,7 +639,7 @@
     },
     "limit": {
       "weeklyTitle": "週間のクラウド上限に達しました",
-      "weeklyDescription": "利用上限はローリング方式でリセットされます。Pro にアップグレードするか、自分の API キーを使用して無制限にご利用ください。"
+      "weeklyDescription": "利用上限はローリング方式でリセットされます。自分の API キーとローカルモデルは上限なく使えます。"
     },
     "accessibilityMissing": {
       "title": "アクセシビリティの許可が必要です",
@@ -1799,7 +1799,7 @@
       "title": "アカウント",
       "toasts": {
         "approachingLimit": {
-          "description": "今週、OpenWhispr Cloud で {{limit}} ワード中 {{used}} ワードを使用しました。Pro にアップグレードして無制限にご利用ください。",
+          "description": "今週の OpenWhispr Cloud の単語を {{used}} / {{limit}} 使用しました。",
           "title": "クラウドのワード上限に近づいています"
         }
       },
@@ -2936,7 +2936,7 @@
         "gemini_3_5_transcribe": "GoogleのGemini音声文字起こし",
         "gemini_3_5_transcribe_live": "リアルタイムストリーミング文字起こし",
         "corti_transcribe": "臨床グレードの医療文字起こし",
-        "xai_grok_stt": "xAIによる高精度音声認識",
+        "xai_grok_voice_transcribe_2_0": "xAIによる高精度音声認識",
         "tinfoil_voxtral": "検証可能なプライベート文字起こし",
         "deepgram_nova_3": "Deepgram で最も高精度なリアルタイムモデル",
         "assemblyai_universal_streaming_english": "変化しないリアルタイム文字起こし（英語）",
@@ -2972,6 +2972,14 @@
         "groq_openai_gpt_oss_120b": "OpenAI のオープンソースフラッグシップ、500 T/秒",
         "groq_qwen_qwen3_8_27b": "高速 Qwen モデル、450 T/秒、131K コンテキスト",
         "groq_openai_gpt_oss_20b": "高速オープンソースモデル、1000 T/秒",
+        "xai_grok_4_7": "コードとチャットの主力モデル、50万トークン",
+        "xai_grok_4_6": "コードとエージェント向けモデル、50万トークン",
+        "xai_grok_4_5": "エージェント作業向けコードモデル、50万トークン",
+        "xai_grok_4_3": "ツール呼び出し対応の高速モデル、100万トークン",
+        "xai_grok_4_20_0309_reasoning": "高速な推論モデル、100万トークン",
+        "xai_grok_4_20_0309_non_reasoning": "推論なしの高速モデル、100万トークン",
+        "xai_grok_build_0_1": "コード向けモデル、25.6万トークン",
+        "xai_grok_4_20_multi_agent_0309": "調査向けの並列エージェント、100万トークン",
         "openai_gpt_6_astra": "コーディングと研究のための OpenAI の最も高性能なモデル",
         "openai_gpt_5_6_sol": "複雑なコーディングと研究のためのフラッグシップ GPT-5.6",
         "openai_gpt_5_6_terra": "日常業務向けのバランス型 GPT-5.6",
@@ -3512,11 +3520,11 @@
       "fileTooLarge": "このファイルは 500 MB の制限を超えています。",
       "largeFileNote": "大容量ファイルは分割され、並列で文字起こしされます。",
       "chunkProgress": "パート {{completed}} / {{total}} を文字起こし中...",
-      "paidPlanRequired": "25 MB を超えるファイルのクラウド文字起こしには有料プランが必要です。大容量ファイルは OpenWhispr Cloud で信頼性の高い高品質な結果を得られます。",
+      "paidPlanRequired": "OpenWhispr Cloud が文字起こしできるファイルは 25 MB までです。このファイルはそれを超えています。",
       "byokTooLarge": "サードパーティの API キーは {{size}} MB までのファイルのみ対応しています。",
-      "byokTooLargeDetail": "{{size}} MB を超えるファイルは、OpenWhispr Cloud が分割・並列処理・結合を行います。サードパーティの制限に依存せず、信頼性の高い結果が得られます。",
-      "byokTooLargeNeedsAccount": "アカウントを作成し、有料プランにアップグレードすると、OpenWhispr Cloud でより大きなファイルを文字起こしできます。",
-      "byokTooLargeNeedsUpgrade": "有料プランにアップグレードすると、OpenWhispr Cloud でより大きなファイルを文字起こしできます。",
+      "byokTooLargeDetail": "サードパーティの API キーは {{size}} MB を超えるファイルを受け付けません。",
+      "byokTooLargeNeedsAccount": "このファイルはサードパーティの API キーには大きすぎます。",
+      "byokTooLargeNeedsUpgrade": "このファイルはサードパーティの API キーには大きすぎます。",
       "switchToCloudForLargeFiles": "このファイルを文字起こしするには OpenWhispr Cloud に切り替えてください。",
       "createAccount": "アカウント作成",
       "upgrade": "アップグレード",
@@ -3891,11 +3899,11 @@
         }
       },
       "locked": {
-        "noWorkspace": "共有辞書は Business プランに含まれています。チームの専門用語、製品名、略語を全員と共有できます。",
-        "upgradeAdmin": "共有辞書は Business プランに含まれています。{{workspace}} をアップグレードすると、全員が同じ単語を使えます。",
-        "upgradeMember": "共有辞書は Business プランに含まれています。{{workspace}} のアップグレードを管理者に依頼してください。",
-        "paused_one": "{{workspace}} の共有単語 {{count}} 個は一時停止中です。Business にアップグレードすると、再び音声入力で使えます。",
-        "paused_other": "{{workspace}} の共有単語 {{count}} 個は一時停止中です。Business にアップグレードすると、再び音声入力で使えます。",
+        "noWorkspace": "共有辞書は Business プランに含まれています。",
+        "upgradeAdmin": "{{workspace}} の共有辞書は Business プランに含まれています。",
+        "upgradeMember": "共有辞書は Business プランに含まれています。{{workspace}} の管理者が管理します。",
+        "paused_one": "{{workspace}} の共有単語 {{count}} 個は一時停止中です。",
+        "paused_other": "{{workspace}} の共有単語 {{count}} 個は一時停止中です。",
         "workspaceTitle": "ワークスペースの全員",
         "workspaceDescription": "会社全体で使う単語",
         "spaceTitle": "スペースごとのリスト",
@@ -3905,8 +3913,8 @@
         "lockLabel": "Business プランに含まれます",
         "ssoRequired": "{{workspace}} では会社の SSO が必要です。サインアウトしてから SSO でサインインし直すと、共有単語を使えます。",
         "noAccess": "{{workspace}} の共有単語にアクセスできなくなりました。心当たりがない場合は管理者にお問い合わせください。",
-        "pausedMember_one": "{{workspace}} の共有単語 {{count}} 個は一時停止中です。管理者またはオーナーに Business へのアップグレードを依頼すると、再び音声入力で使えます。",
-        "pausedMember_other": "{{workspace}} の共有単語 {{count}} 個は一時停止中です。管理者またはオーナーに Business へのアップグレードを依頼すると、再び音声入力で使えます。"
+        "pausedMember_one": "{{workspace}} の共有単語 {{count}} 個は一時停止中です。管理者またはオーナーが管理します。",
+        "pausedMember_other": "{{workspace}} の共有単語 {{count}} 個は一時停止中です。管理者またはオーナーが管理します。"
       },
       "empty": {
         "body": "このチームが使う用語を追加するか、個人リストから共有しましょう。{{list}} の全員（{{count}} 人）に届きます。",

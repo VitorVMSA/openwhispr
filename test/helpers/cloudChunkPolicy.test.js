@@ -39,13 +39,19 @@ test("chunk requests keep transcription identity without writing partial analyti
   const fields = {
     clientTranscriptionId: "dictation-1",
     language: "en",
+    source: "dictation",
     localDate: "2026-09-02",
     analyticsOccurredAt: "2026-09-02T14:00:00.000Z",
+    sendLogs: "false",
+    sessionId: "session",
+    sttProvider: "orukeet",
+    audioDurationMs: 1200,
   };
 
   assert.deepEqual(withoutChunkAnalytics(fields), {
     clientTranscriptionId: "dictation-1",
     language: "en",
+    source: "dictation",
   });
   assert.equal(fields.localDate, "2026-09-02", "the shared inline fields stay unchanged");
   assert.equal(fields.analyticsOccurredAt, "2026-09-02T14:00:00.000Z");

@@ -13,9 +13,8 @@ interface SharedDictionaryUpsellProps {
   workspaceName: string;
   // The lists the last pass read; empty when none were read for this workspace.
   scopes: SharedScope[];
-  // Whether the member's role can buy a plan; only those who can get View plans.
+  // Whether the member's role can manage the workspace. Kept so the paused copy can differ.
   canManage: boolean;
-  onUpgrade: () => void;
 }
 
 interface LockedRow {
@@ -43,7 +42,6 @@ export function SharedDictionaryUpsell({
   workspaceName,
   scopes,
   canManage,
-  onUpgrade,
 }: SharedDictionaryUpsellProps): ReactElement {
   const { t } = useTranslation();
   if (access === "ssoRequired" || access === "noAccess") {
@@ -66,7 +64,6 @@ export function SharedDictionaryUpsell({
     return canManage ? (
       <UpsellBar
         message={t("dictionary.shared.locked.paused", { workspace: workspaceName, count })}
-        onUpgrade={onUpgrade}
       />
     ) : (
       <UpsellBar
@@ -78,7 +75,7 @@ export function SharedDictionaryUpsell({
     access === "noWorkspace"
       ? t("dictionary.shared.locked.noWorkspace")
       : t("dictionary.shared.locked.upgradeAdmin", { workspace: workspaceName });
-  return <UpsellBar message={message} onUpgrade={onUpgrade} />;
+  return <UpsellBar message={message} />;
 }
 
 /** The upsell above the lists Business would give, or keeps paused, dimmed and locked. */

@@ -1,12 +1,10 @@
 import type { UsageState } from "../lib/usageStore";
 
 /**
- * Connectors are paid-only (subscription or trial, like useUsage's
- * hasPaidAccess). Usage data is only loaded while a surface mounts useUsage(),
- * so other windows (the voice assistant) pass the persisted isSubscribed flag,
- * which the API also sets for trials.
+ * This build includes connectors without a paid plan. The arguments stay so
+ * callers (the chat, including a voice window that only has the persisted
+ * flag) keep one eligibility check; signing in and org policy are separate.
  */
-export function hasConnectorPlan(usage: UsageState, isSubscribedFlag: boolean): boolean {
-  if (usage.status === "success") return usage.data.isSubscribed || usage.data.isTrial;
-  return isSubscribedFlag;
+export function hasConnectorPlan(_usage: UsageState, _isSubscribedFlag: boolean): boolean {
+  return true;
 }

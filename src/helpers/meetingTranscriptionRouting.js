@@ -11,6 +11,9 @@ export const MEETING_STREAMING_PROVIDER_IDS = [
   "deepgram",
   "corti",
   "tinfoil",
+  // Same BYOK key and grok-voice-transcribe-2.0 as dictation. Dictation stays on
+  // POST /v1/stt; note recording opens wss://api.x.ai/v1/stt (xai-realtime).
+  "xai",
 ];
 
 export function filterMeetingStreamingProviders(providers) {

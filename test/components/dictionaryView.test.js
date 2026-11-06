@@ -1178,8 +1178,8 @@ const buttonWithText = (container, text) =>
   findElement(container, (node) => node.tagName === "BUTTON" && node.textContent.trim() === text);
 const PAUSED = { ...SNAPSHOT, meta: { ...SNAPSHOT.meta, paused: true } };
 
-test("a locked shared list shows the upsell over dimmed lists, and View Plans opens billing", async (t) => {
-  const { container, calls } = await renderView(t);
+test("a locked shared list shows the limit over dimmed lists, without a plans button", async (t) => {
+  const { container } = await renderView(t);
   globalThis.__workspace = { ...globalThis.__workspace, plan: "pro", role: "owner" };
   await openList(container, "allShared");
   assert.ok(
@@ -1188,9 +1188,7 @@ test("a locked shared list shows the upsell over dimmed lists, and View Plans op
   assert.equal(addInput(container), null, "a locked list has no add field");
   assert.equal(rowFor(container, "ARR"), null, "no words while locked");
   assert.ok(container.textContent.includes('dictionary.shared.memberCount{"count":14}'));
-
-  await click(buttonWithText(container, "integrations.api.viewPlans"));
-  assert.ok(calls.some(([name]) => name === "upgrade"));
+  assert.equal(buttonWithText(container, "integrations.api.viewPlans"), null);
 });
 
 test("a paused list shows its words dimmed and read-only", async (t) => {

@@ -59,32 +59,24 @@ async function renderLocked(props) {
   );
 }
 
-test("noWorkspace describes what Business adds, with View Plans", async () => {
+test("noWorkspace describes what Business adds, without a plans button", async () => {
   const markup = await renderLocked({ access: "noWorkspace", workspaceName: "", scopes: [] });
   const text = textOf(markup);
-  assert.ok(
-    text.includes(
-      "Shared dictionaries are included with Business. Share your team's jargon, product names and acronyms with everyone."
-    )
-  );
+  assert.ok(text.includes("Shared dictionaries are included with Business."));
   assert.ok(text.includes("Everyone in your workspace Words for the whole company"));
   assert.ok(text.includes("A list per space Words only one team needs"));
-  assert.ok(text.includes("View Plans"));
+  assert.ok(!text.includes("View Plans"));
   assert.equal(count(markup, /opacity-60/g), 2);
 });
 
-test("upgradeAdmin shows the real lists with member counts, with View Plans", async () => {
+test("upgradeAdmin shows the real lists with member counts, without a plans button", async () => {
   const markup = await renderLocked({ access: "upgradeAdmin" });
   const text = textOf(markup);
-  assert.ok(
-    text.includes(
-      "Shared dictionaries are included with Business. Upgrade Acme so everyone gets the same words."
-    )
-  );
+  assert.ok(text.includes("Shared dictionaries are included with Business for Acme."));
   assert.ok(text.includes("Everyone at Acme 42 members"));
   assert.ok(text.includes("Engineering 14 members"));
   assert.ok(text.includes("Sales 1 member"));
-  assert.ok(text.includes("View Plans"));
+  assert.ok(!text.includes("View Plans"));
   assert.equal(count(markup, /opacity-60/g), 3);
 });
 
@@ -92,7 +84,9 @@ test("upgradeMember asks an admin and has no button", async () => {
   const markup = await renderLocked({ access: "upgradeMember" });
   const text = textOf(markup);
   assert.ok(
-    text.includes("Shared dictionaries are included with Business. Ask an admin to upgrade Acme.")
+    text.includes(
+      "Shared dictionaries are included with Business. An admin of Acme manages that."
+    )
   );
   assert.ok(text.includes("Everyone at Acme 42 members"));
   assert.ok(text.includes("Engineering 14 members"));
@@ -109,18 +103,14 @@ test("a locked workspace with no lists read yet still names it", async () => {
   assert.equal(count(markup, /opacity-60/g), 2);
 });
 
-test("paused counts the kept words, per list and in total, with View Plans", async () => {
+test("paused counts the kept words, per list and in total, without a plans button", async () => {
   const markup = await renderLocked({ access: "paused" });
   const text = textOf(markup);
-  assert.ok(
-    text.includes(
-      "Acme's 127 shared words are paused. Upgrade to Business to use them in dictation again."
-    )
-  );
+  assert.ok(text.includes("Acme's 127 shared words are paused."));
   assert.ok(text.includes("Everyone at Acme 84 words"));
   assert.ok(text.includes("Engineering 31 words"));
   assert.ok(text.includes("Sales 12 words"));
-  assert.ok(text.includes("View Plans"));
+  assert.ok(!text.includes("View Plans"));
   assert.equal(count(markup, /opacity-60/g), 3);
 });
 
@@ -137,7 +127,7 @@ test("paused bar alone is the same bar a read-only list shows above its words", 
   );
   const text = textOf(markup);
   assert.ok(text.includes("Acme's 1 shared word is paused."));
-  assert.ok(text.includes("View Plans"));
+  assert.ok(!text.includes("View Plans"));
   assert.equal(count(markup, /opacity-60/g), 0);
 });
 
@@ -145,9 +135,7 @@ test("a paused workspace asks a member to contact an admin or owner, with no but
   const markup = await renderLocked({ access: "paused", canManage: false });
   const text = textOf(markup);
   assert.ok(
-    text.includes(
-      "Acme's 127 shared words are paused. Ask an admin or owner to upgrade to Business to use them in dictation again."
-    )
+    text.includes("Acme's 127 shared words are paused. An admin or owner manages that.")
   );
   assert.ok(text.includes("Engineering 31 words"));
   assert.equal(count(markup, /<button/g), 0);

@@ -16,8 +16,10 @@ test("custom BYOK Chat stays on its provider route", async () => {
 test("built-in provider Chat stays on its provider route", async () => {
   const { resolveChatRoute } = await load();
   const route = resolveChatRoute({ provider: "gemini" });
+  const xai = resolveChatRoute({ provider: "xai" });
 
   assert.equal(route.kind, "provider");
+  assert.equal(xai.kind, "provider");
 });
 
 test("local Chat stays on its local route", async () => {

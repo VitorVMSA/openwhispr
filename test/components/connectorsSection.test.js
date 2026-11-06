@@ -172,21 +172,20 @@ test("while usage is unknown, the card follows the saved flag like the chat does
   assert.match(textContent, /connectors\.email\.description/);
 });
 
-test("while usage is unknown and the flag is unset, the card asks for a plan", async (t) => {
+test("while usage is unknown and the flag is unset, the card still offers drafts", async (t) => {
   const loading = { status: "loading", accountId: "acct" };
   const { textContent } = await renderSection(t, { usageState: loading, subscribedFlag: false });
-  assert.match(textContent, /connectors\.upsell/);
+  assert.match(textContent, /connectors\.email\.description/);
+  assert.doesNotMatch(textContent, /connectors\.upsell/);
+  assert.doesNotMatch(textContent, /integrations\.api\.viewPlans/);
 });
 
-test("free users see one upsell above the connectors, which still say what they do", async (t) => {
+test("a free plan sees the draft picker and what each connector does, with no upgrade prompt", async (t) => {
   const container = await renderSection(t, { usageState: usage(false) });
-  assert.match(container.textContent, /connectors\.upsell/);
+  assert.doesNotMatch(container.textContent, /connectors\.upsell/);
+  assert.doesNotMatch(container.textContent, /integrations\.api\.viewPlans/);
   assert.match(container.textContent, /connectors\.email\.description/);
-  assert.doesNotMatch(container.textContent, /connectors\.email\.targets\.gmail/);
-  // The section's first button is the upsell's primary View plans.
-  const button = findElement(container, (node) => node.tagName === "BUTTON");
-  assert.match(button.textContent, /integrations\.api\.viewPlans/);
-  assert.equal(button.getAttribute("variant"), null);
+  assert.match(container.textContent, /connectors\.email\.targets\.gmail/);
 });
 
 test("an org that turned connectors off sees why, under the card's header", async (t) => {
@@ -217,10 +216,11 @@ test("while the policy is unresolved, the card says drafts are unavailable", asy
   assert.equal(fetches, 0);
 });
 
-test("an unresolved policy doesn't hide the upsell from a free user", async (t) => {
+test("an unresolved policy says drafts are unavailable, with no upgrade prompt", async (t) => {
   const { textContent } = await renderSection(t, { usageState: usage(false), allowed: false });
-  assert.match(textContent, /connectors\.upsell/);
-  assert.match(textContent, /integrations\.api\.viewPlans/);
+  assert.match(textContent, /connectors\.email\.unavailable/);
+  assert.doesNotMatch(textContent, /connectors\.upsell/);
+  assert.doesNotMatch(textContent, /integrations\.api\.viewPlans/);
 });
 
 test("Connectors shows no recent actions or receipt content and never fetches history", async (t) => {
@@ -276,22 +276,22 @@ test("a stale login offers Reconnect and Disconnect", async (t) => {
   assert.match(staleMarkup, /connectors\.slack\.needsReconnect/);
 });
 
-test("free users with no login see a single View plans and no Connect", async (t) => {
+test("a free plan with no login can connect, and sees no upgrade prompt", async (t) => {
   const none = await renderSection(t, { isPaid: false, blocked: false });
-  assert.equal(count(none.textContent, /integrations\.api\.viewPlans/g), 1);
-  assert.equal(buttonWithText(none, "connectors.slack.connect"), null);
+  assert.equal(count(none.textContent, /integrations\.api\.viewPlans/g), 0);
+  assert.ok(buttonWithText(none, "connectors.slack.connect"));
   // The beta badge sits on the Connectors title, not on each row.
   assert.doesNotMatch(none.textContent, /connectors\.beta/);
 });
 
-test("free users can always disconnect a login they have", async (t) => {
+test("a free plan can disconnect a login it has, with no upgrade prompt", async (t) => {
   const lapsed = await renderSection(t, {
     isPaid: false,
     blocked: false,
     statuses: { slack: SLACK },
   });
   assert.match(lapsed.textContent, /connectors\.slack\.disconnect/);
-  assert.equal(count(lapsed.textContent, /integrations\.api\.viewPlans/g), 1);
+  assert.equal(count(lapsed.textContent, /integrations\.api\.viewPlans/g), 0);
 });
 
 test("an org that turned connectors off still lets the user remove a login", async (t) => {

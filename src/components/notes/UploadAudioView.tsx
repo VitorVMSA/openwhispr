@@ -1231,7 +1231,6 @@ export default function UploadAudioView({ onNoteCreated, onOpenSettings }: Uploa
             byokMaxFileSizeMb={byokMaxFileSizeMb}
             requiresAccount={requiresAccount}
             isProUser={!!isProUser}
-            onUpgrade={() => usage?.openCheckout()}
             onCreateAccount={requestSignIn}
             onSwitchToCloud={switchToCloud}
             onOpenSettings={onOpenSettings}
@@ -1581,7 +1580,6 @@ interface SelectedViewProps {
   byokMaxFileSizeMb: number;
   requiresAccount: boolean;
   isProUser: boolean;
-  onUpgrade: () => void;
   onCreateAccount: () => void;
   onSwitchToCloud: () => void;
   onOpenSettings?: (section: string) => void;
@@ -1602,7 +1600,6 @@ function SelectedView({
   byokMaxFileSizeMb,
   requiresAccount,
   isProUser,
-  onUpgrade,
   onCreateAccount,
   onSwitchToCloud,
   onOpenSettings,
@@ -1699,20 +1696,6 @@ function SelectedView({
         {byokTooLarge && !requiresAccount && isProUser && (
           <Button onClick={onSwitchToCloud} className={PRIMARY_ACTION_CLASS}>
             {t("notes.upload.switchToCloud")}
-          </Button>
-        )}
-
-        {/* BYOK too large — signed in, Free: Upgrade */}
-        {byokTooLarge && !requiresAccount && !isProUser && (
-          <Button onClick={onUpgrade} className={PRIMARY_ACTION_CLASS}>
-            {t("notes.upload.upgrade")}
-          </Button>
-        )}
-
-        {/* Cloud requires upgrade */}
-        {!byokTooLarge && requiresUpgrade && (
-          <Button onClick={onUpgrade} className={PRIMARY_ACTION_CLASS}>
-            {t("notes.upload.upgrade")}
           </Button>
         )}
 

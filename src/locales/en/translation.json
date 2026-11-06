@@ -639,7 +639,7 @@
     },
     "limit": {
       "weeklyTitle": "Weekly Cloud limit reached",
-      "weeklyDescription": "Your limit resets on a rolling basis. Upgrade to Pro or use your own API key for unlimited use."
+      "weeklyDescription": "Your limit resets on a rolling basis. Your own API key and local models stay unlimited."
     },
     "accessibilityMissing": {
       "title": "Accessibility permissions needed",
@@ -2328,7 +2328,7 @@
       "title": "Account",
       "toasts": {
         "approachingLimit": {
-          "description": "You've used {{used}} of {{limit}} OpenWhispr Cloud words this week. Upgrade to Pro for unlimited use.",
+          "description": "You've used {{used}} of {{limit}} OpenWhispr Cloud words this week.",
           "title": "Approaching Cloud word limit"
         }
       },
@@ -3034,7 +3034,7 @@
         "gemini_3_5_transcribe": "Google's Gemini speech-to-text",
         "gemini_3_5_transcribe_live": "Realtime streaming speech-to-text",
         "corti_transcribe": "Clinical-grade medical transcription",
-        "xai_grok_stt": "High-accuracy speech recognition by xAI",
+        "xai_grok_voice_transcribe_2_0": "Best xAI speech-to-text",
         "tinfoil_voxtral": "Verifiably private transcription",
         "deepgram_nova_3": "Deepgram's most accurate realtime model",
         "assemblyai_universal_streaming_english": "Immutable realtime transcripts, English",
@@ -3070,6 +3070,14 @@
         "groq_openai_gpt_oss_120b": "OpenAI's open-source flagship, 500 T/sec",
         "groq_qwen_qwen3_8_27b": "Fast Qwen model, 450 T/sec, 131K context",
         "groq_openai_gpt_oss_20b": "Fast open-source model, 1000 T/sec",
+        "xai_grok_4_7": "Flagship for code and chat, 500K context",
+        "xai_grok_4_6": "Frontier coding and agent model, 500K context",
+        "xai_grok_4_5": "Coding model for agentic work, 500K context",
+        "xai_grok_4_3": "Fast model with tool calling, 1M context",
+        "xai_grok_4_20_0309_reasoning": "Fast reasoning model, 1M context",
+        "xai_grok_4_20_0309_non_reasoning": "Fast model without reasoning, 1M context",
+        "xai_grok_build_0_1": "Coding model, 256K context",
+        "xai_grok_4_20_multi_agent_0309": "Parallel agents for research, 1M context",
         "openai_gpt_6_astra": "OpenAI's most capable model for coding and research",
         "openai_gpt_5_6_sol": "Flagship GPT-5.6 for complex coding and research",
         "openai_gpt_5_6_terra": "Balanced GPT-5.6 for everyday work",
@@ -3969,13 +3977,13 @@
       "noProviderDescription": "Add an API key or download a local model to start transcribing.",
       "noProviderAction": "Open Transcription Settings",
       "fileTooLarge": "This file exceeds the 500 MB limit.",
-      "paidPlanRequired": "Cloud transcription for files over 25 MB requires a paid plan. Large files are processed with OpenWhispr Cloud for reliable, high-quality results.",
+      "paidPlanRequired": "OpenWhispr Cloud transcribes files up to 25 MB. This file is larger than that.",
       "largeFileNote": "Large files are split and transcribed in parallel.",
       "chunkProgress": "Transcribing part {{completed}} of {{total}}...",
       "byokTooLarge": "Third-party API keys only support files up to {{size}} MB.",
-      "byokTooLargeDetail": "For files over {{size}} MB, OpenWhispr Cloud handles splitting, parallel processing, and reassembly — so you get reliable results without depending on third-party provider limits.",
-      "byokTooLargeNeedsAccount": "Create an account and upgrade to a paid plan to transcribe larger files with OpenWhispr Cloud.",
-      "byokTooLargeNeedsUpgrade": "Upgrade to a paid plan to transcribe larger files with OpenWhispr Cloud.",
+      "byokTooLargeDetail": "A third-party API key does not accept files over {{size}} MB.",
+      "byokTooLargeNeedsAccount": "This file is too large for a third-party API key.",
+      "byokTooLargeNeedsUpgrade": "This file is too large for a third-party API key.",
       "switchToCloudForLargeFiles": "Switch to OpenWhispr Cloud to transcribe this file.",
       "createAccount": "Create Account",
       "upgrade": "Upgrade",
@@ -4503,11 +4511,11 @@
         }
       },
       "locked": {
-        "noWorkspace": "Shared dictionaries are included with Business. Share your team's jargon, product names and acronyms with everyone.",
-        "upgradeAdmin": "Shared dictionaries are included with Business. Upgrade {{workspace}} so everyone gets the same words.",
-        "upgradeMember": "Shared dictionaries are included with Business. Ask an admin to upgrade {{workspace}}.",
-        "paused_one": "{{workspace}}'s {{count}} shared word is paused. Upgrade to Business to use it in dictation again.",
-        "paused_other": "{{workspace}}'s {{count}} shared words are paused. Upgrade to Business to use them in dictation again.",
+        "noWorkspace": "Shared dictionaries are included with Business.",
+        "upgradeAdmin": "Shared dictionaries are included with Business for {{workspace}}.",
+        "upgradeMember": "Shared dictionaries are included with Business. An admin of {{workspace}} manages that.",
+        "paused_one": "{{workspace}}'s {{count}} shared word is paused.",
+        "paused_other": "{{workspace}}'s {{count}} shared words are paused.",
         "workspaceTitle": "Everyone in your workspace",
         "workspaceDescription": "Words for the whole company",
         "spaceTitle": "A list per space",
@@ -4517,8 +4525,8 @@
         "lockLabel": "Included with Business",
         "ssoRequired": "{{workspace}} requires company SSO. Sign out, then sign in with SSO to use its shared words.",
         "noAccess": "You no longer have access to {{workspace}}'s shared words. Ask an admin if this is a mistake.",
-        "pausedMember_one": "{{workspace}}'s {{count}} shared word is paused. Ask an admin or owner to upgrade to Business to use it in dictation again.",
-        "pausedMember_other": "{{workspace}}'s {{count}} shared words are paused. Ask an admin or owner to upgrade to Business to use them in dictation again."
+        "pausedMember_one": "{{workspace}}'s {{count}} shared word is paused. An admin or owner manages that.",
+        "pausedMember_other": "{{workspace}}'s {{count}} shared words are paused. An admin or owner manages that."
       },
       "empty": {
         "body": "Add the terms this team uses, or share some from your personal list. Everyone in {{list}} ({{count}}) will get them.",

@@ -331,7 +331,7 @@ test("the STT config goes stale after fifteen minutes and immediately when inval
   assert.equal(manager.isSttConfigStale(fetchedAt), true);
 });
 
-test("a cloud upload reports why it was batch instead of the managed Orukeet stream", async (t) => {
+test("a cloud upload does not report why it was batch instead of the managed Orukeet stream", async (t) => {
   const manager = await loadManager(t);
   const originalNavigator = globalThis.navigator;
   Object.defineProperty(globalThis, "navigator", {
@@ -377,13 +377,7 @@ test("a cloud upload reports why it was batch instead of the managed Orukeet str
   manager.sttConfig = { dictation: { mode: "batch" }, streamingProvider: "deepgram" };
   await upload();
 
-  assert.deepEqual(captured, [
-    "language_unsupported",
-    "feature_disabled",
-    undefined,
-    "stream_no_final",
-    undefined,
-  ]);
+  assert.deepEqual(captured, [undefined, undefined, undefined, undefined, undefined]);
 });
 
 // The Cloud batch pipeline end to end: upload, then cleanup or translation.
@@ -475,7 +469,7 @@ for (const { name, translationRequested, useCleanupModel, cleanupCloudMode } of 
     cleanupCloudMode: "byok",
   },
 ]) {
-  test(`batch fallback telemetry survives ${name}`, async (t) => {
+  test(`batch fallback keeps the transcript for ${name}`, async (t) => {
     const { manager, window } = await loadCloudPipeline(t, {
       translationRequested,
       useCleanupModel,
@@ -507,9 +501,12 @@ for (const { name, translationRequested, useCleanupModel, cleanupCloudMode } of 
         result.text,
         translationRequested ? "translated transcript" : "clean transcript"
       );
-      assert.equal(uploads.at(-1).sendLogs, combinedLog ? "false" : undefined);
-      assert.equal(uploads.at(-1).streamingFallbackReason, reason);
-      if (combinedLog) assert.equal(cleanupRequests.at(-1).streamingFallbackReason, reason);
+      assert.equal(Object.hasOwn(uploads.at(-1), "sendLogs"), false);
+      assert.equal(Object.hasOwn(uploads.at(-1), "streamingFallbackReason"), false);
+      if (combinedLog) {
+        assert.equal(cleanupRequests.at(-1).purpose, "cleanup");
+        assert.equal(Object.hasOwn(cleanupRequests.at(-1), "streamingFallbackReason"), false);
+      }
     }
     assert.equal(uploads.length, 6);
     assert.equal(cleanupRequests.length, combinedLog ? 6 : 0);
@@ -541,11 +538,9 @@ test("the language fallback upload declares auto, never the detected language", 
   });
   assert.equal(result.text, "日本語のテキスト");
   assert.equal(Object.hasOwn(captured[0], "language"), false);
-  assert.equal(captured[0].streamingFallbackReason, "language_detected_unsupported");
-  assert.equal(captured[0].sttDetectedLanguage, "ja");
-  assert.equal(captured[0].sttDetectedLanguageConfidence, 0.97);
-  assert.equal(captured[0].sttDetectedLanguageAudioSeconds, 6);
-  assert.equal(captured[0].sttDetectedLanguageStatus, "detected");
+  for (const key of ["streamingFallbackReason", ...Object.keys(JA_DETECTION)]) {
+    assert.equal(Object.hasOwn(captured[0], key), false, key);
+  }
 });
 
 test("a voice assistant upload writes its own log, since no cleanup call does", async (t) => {
@@ -581,11 +576,11 @@ test("a voice assistant upload writes its own log, since no cleanup call does", 
   assert.deepEqual(agentCommands, ["明日の会議"]);
   assert.equal(reasonCalls.length, 0);
   assert.equal(Object.hasOwn(uploads[0], "sendLogs"), false);
-  assert.equal(uploads[0].sttDetectedLanguage, "ja");
+  assert.equal(Object.hasOwn(uploads[0], "sttDetectedLanguage"), false);
 });
 
 for (const translationRequested of [false, true]) {
-  test(`with cloud ${translationRequested ? "translation " : ""}cleanup the combined log request carries the detection`, async (t) => {
+  test(`with cloud ${translationRequested ? "translation " : ""}cleanup the request keeps the transcript and drops the detection`, async (t) => {
     const { manager, window } = await loadCloudPipeline(t, {
       translationRequested,
       useCleanupModel: true,
@@ -607,9 +602,10 @@ for (const translationRequested of [false, true]) {
       detectedLanguageFields: JA_DETECTION,
     });
     assert.equal(reasonOpts.length, 1);
-    assert.equal(reasonOpts[0].streamingFallbackReason, "language_detected_unsupported");
-    for (const [key, value] of Object.entries(JA_DETECTION)) {
-      assert.equal(reasonOpts[0][key], value, key);
+    assert.equal(reasonOpts[0].purpose, "cleanup");
+    assert.equal(Object.hasOwn(reasonOpts[0], "streamingFallbackReason"), false);
+    for (const key of Object.keys(JA_DETECTION)) {
+      assert.equal(Object.hasOwn(reasonOpts[0], key), false, key);
     }
   });
 }

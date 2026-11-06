@@ -803,10 +803,10 @@ test("with connectors turned off by the org, only Disconnect remains", async (t)
   assert.equal(hasButton(container, "connectors.github.repositories.manage"), false);
 });
 
-test("a free plan keeps Disconnect for its login but can't manage repositories", async (t) => {
+test("a plan is not required to disconnect GitHub or manage its repositories", async (t) => {
   const { container } = await renderGithubRow(t, { status: GITHUB, isPaid: false });
   assert.equal(hasButton(container, "connectors.github.disconnect"), true);
-  assert.equal(hasButton(container, "connectors.github.repositories.manage"), false);
+  assert.equal(hasButton(container, "connectors.github.repositories.manage"), true);
 });
 
 test("a login that needs reconnecting offers Reconnect and Disconnect", async (t) => {

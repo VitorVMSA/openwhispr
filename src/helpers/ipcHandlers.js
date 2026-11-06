@@ -395,27 +395,36 @@ function resolveAllowedAudioPath(filePath) {
   return null;
 }
 
-function buildMultipartBody(fileBuffer, fileName, contentType, fields = {}) {
+function buildMultipartBody(fileBuffer, fileName, contentType, fields = {}, options = {}) {
   const boundary = `----OpenWhispr${Date.now()}`;
   const parts = [];
 
-  parts.push(
-    `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
-      `Content-Type: ${contentType}\r\n\r\n`
-  );
-  parts.push(fileBuffer);
-  parts.push("\r\n");
+  const pushFile = () => {
+    parts.push(
+      `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+        `Content-Type: ${contentType}\r\n\r\n`
+    );
+    parts.push(fileBuffer);
+    parts.push("\r\n");
+  };
 
-  for (const [name, value] of Object.entries(fields)) {
-    if (value != null) {
-      parts.push(
-        `--${boundary}\r\n` +
-          `Content-Disposition: form-data; name="${name}"\r\n\r\n` +
-          `${value}\r\n`
-      );
+  const pushFields = () => {
+    for (const [name, value] of Object.entries(fields)) {
+      if (value != null) {
+        parts.push(
+          `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="${name}"\r\n\r\n` +
+            `${value}\r\n`
+        );
+      }
     }
-  }
+  };
+
+  // xAI drops option fields that follow the file.
+  if (options.fieldsFirst) pushFields();
+  pushFile();
+  if (!options.fieldsFirst) pushFields();
 
   parts.push(`--${boundary}--\r\n`);
 
@@ -719,7 +728,6 @@ class IPCHandlers {
     this.getSemanticSearch = managers.getSemanticSearch;
     this.oauthProtocolRegistered = managers.oauthProtocolRegistered === true;
     this.oauthProtocol = managers.oauthProtocol || "openwhispr";
-    this.sessionId = crypto.randomUUID();
     // requestId -> AbortControllers for in-flight audio-upload work (cloud
     // upload, or local transcription + diarization sharing one id), so a
     // cancel can abort the exact job.
@@ -5325,7 +5333,7 @@ class IPCHandlers {
 
     ipcMain.handle(
       "proxy-xai-transcription",
-      serializeIpcError(async (event, { audioBuffer, language, keyterms }) => {
+      serializeIpcError(async (event, { audioBuffer, model, language, keyterms }) => {
         const apiKey = this.environmentManager.getXaiKey();
         if (!apiKey) {
           throw providerError(PROVIDER_ERROR_CODES.KEY_MISSING, {
@@ -5334,19 +5342,17 @@ class IPCHandlers {
           });
         }
 
+        const { xaiSttRequestFields } = await import("./transcriptionRoute.ts");
+        const fields = xaiSttRequestFields(model, language);
         const formData = new FormData();
-        const audioBlob = new Blob([Buffer.from(audioBuffer)], { type: "audio/webm" });
-        formData.append("file", audioBlob, "audio.webm");
-        const { XAI_STT_LANGUAGES } = await import("./transcriptionRoute.ts");
-        if (language && language !== "auto" && XAI_STT_LANGUAGES.has(language)) {
-          formData.append("language", language);
-          formData.append("format", "true");
-        }
+        for (const [name, value] of fields) formData.append(name, value);
         if (keyterms && keyterms.length > 0) {
           for (const term of keyterms) {
             formData.append("keyterm", term);
           }
         }
+        const audioBlob = new Blob([Buffer.from(audioBuffer)], { type: "audio/webm" });
+        formData.append("file", audioBlob, "audio.webm");
 
         const response = await proxyFetch(XAI_STT_URL, {
           method: "POST",
@@ -5362,6 +5368,7 @@ class IPCHandlers {
           });
           throw providerHttpError({
             provider: "xAI",
+            model: fields[0][1],
             status: response.status,
             body: errorText,
             headers: response.headers,
@@ -7555,23 +7562,9 @@ class IPCHandlers {
           source: "dictation",
           language: opts.language,
           prompt: opts.prompt,
-          sendLogs: opts.sendLogs,
-          clientType: "desktop",
-          appVersion: app.getVersion(),
-          clientVersion: app.getVersion(),
-          sessionId: this.sessionId,
+          // Same id the local history row uses, so a later sync fills this
+          // cloud row instead of creating a second one.
           clientTranscriptionId,
-          localDate: opts.localDate,
-          analyticsOccurredAt: opts.analyticsOccurredAt,
-          streamingFallbackReason: opts.streamingFallbackReason,
-          sttDetectedLanguage: opts.sttDetectedLanguage,
-          sttDetectedLanguageConfidence: opts.sttDetectedLanguageConfidence,
-          sttDetectedLanguageAudioSeconds: opts.sttDetectedLanguageAudioSeconds,
-          sttDetectedLanguageStatus: opts.sttDetectedLanguageStatus,
-          orukeetLanguageRouting: opts.orukeetLanguageRouting
-            ? JSON.stringify(opts.orukeetLanguageRouting)
-            : undefined,
-          orukeetCleanup: opts.orukeetCleanup ? JSON.stringify(opts.orukeetCleanup) : undefined,
         };
 
         debugLogger.debug("Cloud transcribe request", { audioSize: audioData.length }, "cloud-api");
@@ -7584,7 +7577,6 @@ class IPCHandlers {
             multipartFields,
             signal: controller.signal,
           });
-          const sum = (field) => responses.reduce((s, r) => s + (r?.[field] || 0), 0);
           return {
             success: true,
             text,
@@ -7594,12 +7586,9 @@ class IPCHandlers {
             wordsRemaining: lastResponse?.wordsRemaining,
             plan: lastResponse?.plan,
             limitReached: lastResponse?.limitReached || false,
-            sttProvider: lastResponse?.sttProvider,
-            sttModel: lastResponse?.sttModel,
-            sttProcessingMs: sum("sttProcessingMs"),
-            sttWordCount: sum("sttWordCount"),
+            // Wake-word routing uses the detected language locally. It is not
+            // sent back on a later request.
             sttLanguage: lastResponse?.sttLanguage,
-            audioDurationMs: sum("audioDurationMs"),
           };
         }
 
@@ -7633,12 +7622,7 @@ class IPCHandlers {
           wordsRemaining: result.wordsRemaining,
           plan: result.plan,
           limitReached: result.limitReached || false,
-          sttProvider: result.sttProvider,
-          sttModel: result.sttModel,
-          sttProcessingMs: result.sttProcessingMs,
-          sttWordCount: result.sttWordCount,
           sttLanguage: result.sttLanguage,
-          audioDurationMs: result.audioDurationMs,
         };
       } catch (error) {
         if (controller.signal.aborted) {
@@ -7809,10 +7793,7 @@ class IPCHandlers {
               if (apiUrl) {
                 const multipartFields = {
                   language,
-                  clientType: "desktop",
                   source: "dictation",
-                  appVersion: app.getVersion(),
-                  sessionId: this.sessionId,
                 };
                 if (buffer.length > CLOUD_INLINE_LIMIT) {
                   const { text, warning } = await chunkedCloudTranscribe({
@@ -7948,14 +7929,15 @@ class IPCHandlers {
           }
 
           const formData = new FormData();
-          formData.append("file", new Blob([uploadBuffer], { type: uploadType }), uploadName);
           if (provider === "xai") {
-            // xAI STT does not accept a model field; the route pre-filters language
-            if (route.language) {
-              formData.append("language", route.language);
-              formData.append("format", "true");
+            // Option fields must precede the file or xAI ignores them.
+            const { xaiSttRequestFields } = await import("./transcriptionRoute.ts");
+            for (const [name, value] of xaiSttRequestFields(route.model, route.language)) {
+              formData.append(name, value);
             }
+            formData.append("file", new Blob([uploadBuffer], { type: uploadType }), uploadName);
           } else {
+            formData.append("file", new Blob([uploadBuffer], { type: uploadType }), uploadName);
             formData.append("model", route.model);
             if (route.language) formData.append("language", route.language);
           }
@@ -11291,26 +11273,6 @@ class IPCHandlers {
             appCategory: opts.appCategory,
             language: opts.language,
             locale: opts.locale,
-            sessionId: this.sessionId,
-            clientType: "desktop",
-            appVersion: app.getVersion(),
-            clientVersion: app.getVersion(),
-            streamingFallbackReason: opts.streamingFallbackReason,
-            sttProvider: opts.sttProvider,
-            sttModel: opts.sttModel,
-            sttProcessingMs: opts.sttProcessingMs,
-            sttWordCount: opts.sttWordCount,
-            sttLanguage: opts.sttLanguage,
-            sttDetectedLanguage: opts.sttDetectedLanguage,
-            sttDetectedLanguageConfidence: opts.sttDetectedLanguageConfidence,
-            sttDetectedLanguageAudioSeconds: opts.sttDetectedLanguageAudioSeconds,
-            sttDetectedLanguageStatus: opts.sttDetectedLanguageStatus,
-            orukeetLanguageRouting: opts.orukeetLanguageRouting,
-            orukeetCleanup: opts.orukeetCleanup,
-            audioDurationMs: opts.audioDurationMs,
-            audioSizeBytes: opts.audioSizeBytes,
-            audioFormat: opts.audioFormat,
-            clientTotalMs: opts.clientTotalMs,
           }),
         });
 
@@ -11392,9 +11354,6 @@ class IPCHandlers {
             systemPrompt: opts.systemPrompt,
             tools: opts.tools,
             ...(opts.screenContext ? { screenContext: opts.screenContext } : {}),
-            sessionId: this.sessionId,
-            clientType: "desktop",
-            appVersion: app.getVersion(),
           }),
           signal: controller.signal,
         });
@@ -11542,29 +11501,9 @@ class IPCHandlers {
             body: JSON.stringify({
               text,
               audioDurationSeconds,
-              sessionId: this.sessionId,
-              clientType: "desktop",
-              appVersion: app.getVersion(),
-              clientVersion: app.getVersion(),
-              sttProvider: opts.sttProvider,
-              sttModel: opts.sttModel,
-              sttProcessingMs: opts.sttProcessingMs,
-              sttLanguage: opts.sttLanguage,
-              sttDetectedLanguage: opts.sttDetectedLanguage,
-              sttDetectedLanguageConfidence: opts.sttDetectedLanguageConfidence,
-              sttDetectedLanguageAudioSeconds: opts.sttDetectedLanguageAudioSeconds,
-              sttDetectedLanguageStatus: opts.sttDetectedLanguageStatus,
-              orukeetLanguageRouting: opts.orukeetLanguageRouting,
-              orukeetCleanup: opts.orukeetCleanup,
-              audioSizeBytes: opts.audioSizeBytes,
-              audioFormat: opts.audioFormat,
-              clientTotalMs: opts.clientTotalMs,
-              sendLogs: opts.sendLogs,
+              // Same id as the local history row, so this metered stream and a
+              // later sync are one event.
               clientTranscriptionId: opts.clientTranscriptionId,
-              localDate: opts.localDate,
-              analyticsOccurredAt: opts.analyticsOccurredAt,
-              analyticsWordCount: opts.analyticsWordCount,
-              analyticsCounterVersion: opts.analyticsCounterVersion,
             }),
           });
 
@@ -11848,10 +11787,6 @@ class IPCHandlers {
 
           const multipartFields = {
             source: purpose === "dictation" ? "dictation" : "file_upload",
-            clientType: "desktop",
-            appVersion: app.getVersion(),
-            clientVersion: app.getVersion(),
-            sessionId: this.sessionId,
           };
 
           const fileSize = fs.statSync(realCloud).size;
@@ -11949,7 +11884,9 @@ class IPCHandlers {
             const sourcePath = resolveAllowedAudioPath(filePath);
             if (!sourcePath) return { success: false, error: "File path not allowed" };
 
-            const { resolveTranscriptionRoute } = await import("./transcriptionRoute.ts");
+            const { resolveTranscriptionRoute, xaiSttRequestFields } = await import(
+              "./transcriptionRoute.ts"
+            );
             const route = resolveTranscriptionRoute({
               settings: {
                 transcriptionMode,
@@ -12096,10 +12033,8 @@ class IPCHandlers {
             const multipartFields = {};
             if (route.provider === "xai") {
               transcriptionUrl = XAI_STT_URL;
-              // xAI STT accepts no model field; the route pre-filters language
-              if (route.language) {
-                multipartFields.language = route.language;
-                multipartFields.format = "true";
+              for (const [name, value] of xaiSttRequestFields(route.model, route.language)) {
+                multipartFields[name] = value;
               }
             } else {
               transcriptionUrl =
@@ -12141,7 +12076,8 @@ class IPCHandlers {
               audioBuffer,
               fileName,
               contentType,
-              multipartFields
+              multipartFields,
+              { fieldsFirst: route.provider === "xai" }
             );
 
             const url = new URL(transcriptionUrl);

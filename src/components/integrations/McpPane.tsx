@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { CopyableCommand } from "../ui/CopyableCommand";
 import { SettingsPanel, SettingsPanelRow } from "../ui/SettingsSection";
 import { useToast } from "../ui/useToast";
-import { IntegrationsPane, UpsellBar } from "./IntegrationsPane";
+import { IntegrationsPane } from "./IntegrationsPane";
 import claudeIcon from "../../assets/icons/providers/claude.svg";
 import openaiIcon from "../../assets/icons/providers/openai.svg";
 import cursorIcon from "../../assets/icons/providers/cursor.svg";
@@ -20,12 +20,10 @@ const MCP_CLIENTS = [
 
 interface McpPaneProps {
   title: string;
-  isPaid: boolean;
-  onUpgrade: () => void;
   onCreateKey: () => void;
 }
 
-export function McpPane({ title, isPaid, onUpgrade, onCreateKey }: McpPaneProps): ReactElement {
+export function McpPane({ title, onCreateKey }: McpPaneProps): ReactElement {
   const { t } = useTranslation();
   const { toast } = useToast();
 
@@ -53,8 +51,6 @@ export function McpPane({ title, isPaid, onUpgrade, onCreateKey }: McpPaneProps)
           </span>
         ))}
       </div>
-
-      {!isPaid && <UpsellBar message={t("integrations.mcp.proRequired")} onUpgrade={onUpgrade} />}
 
       <SettingsPanel>
         <SettingsPanelRow>
@@ -87,13 +83,7 @@ export function McpPane({ title, isPaid, onUpgrade, onCreateKey }: McpPaneProps)
                 {t("integrations.mcp.apiKeyDescription")}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCreateKey}
-              disabled={!isPaid}
-              className="shrink-0"
-            >
+            <Button variant="outline" size="sm" onClick={onCreateKey} className="shrink-0">
               {t("apiKeysSection.createButton")}
             </Button>
           </div>

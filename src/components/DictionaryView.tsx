@@ -160,12 +160,7 @@ const isSharedList = (list: ListKey): boolean => list !== "all" && list !== "per
 const sameWord = (left: string, right: string): boolean =>
   dictionaryWordKey(left) === dictionaryWordKey(right);
 
-interface DictionaryViewProps {
-  // Opens Plans & Billing from a Shared list's upsell.
-  onUpgrade: () => void;
-}
-
-export default function DictionaryView({ onUpgrade }: DictionaryViewProps): ReactElement {
+export default function DictionaryView(): ReactElement {
   const { t, i18n } = useTranslation();
   const { customDictionary, updateCustomDictionary, snippets } = useSettings();
   const { active: workspace } = useWorkspace();
@@ -880,7 +875,6 @@ export default function DictionaryView({ onUpgrade }: DictionaryViewProps): Reac
                 workspaceName={workspaceName}
                 scopes={scopes}
                 canManage={canManage}
-                onUpgrade={onUpgrade}
               />
             ) : (
               <>
@@ -890,7 +884,6 @@ export default function DictionaryView({ onUpgrade }: DictionaryViewProps): Reac
                     workspaceName={workspaceName}
                     scopes={scopes}
                     canManage={canManage}
-                    onUpgrade={onUpgrade}
                   />
                 )}
                 <DictionaryAddField

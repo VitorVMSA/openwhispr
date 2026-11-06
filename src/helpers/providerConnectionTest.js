@@ -18,6 +18,10 @@ const ENDPOINTS = {
   // AssemblyAI exposes no model list; listing transcripts is its 200-vs-401 probe.
   assemblyai: "https://api.assemblyai.com/v2/transcript?limit=1",
 };
+// Speech models are absent from GET /v1/models (that list is chat, image and video).
+// POST /v1/stt with the model and no file is free: a missing-file 400 means the id
+// was accepted, and a 404 means this account cannot call it.
+const XAI_STT_ENDPOINT = "https://api.x.ai/v1/stt";
 // Listing the key's projects proves the key too: used only if Deepgram retires the route above.
 const DEEPGRAM_PROJECTS_ENDPOINT = "https://api.deepgram.com/v1/projects";
 // Turns a made-up key away before embedding anything; a valid key pays for one token.
@@ -429,6 +433,8 @@ async function testProviderConnection(
       if (provider === "assemblyai" || (await responseOffersModel(response, model, provider))) {
         return null;
       }
+      // xAI's model list never names speech models, so a missing id is not a refusal.
+      if (provider === "xai" && model) return probeXaiSpeechModel(request, model, fetchImpl);
       return MODEL_NOT_FOUND;
     });
     if (!next) {
@@ -453,6 +459,35 @@ async function describeOpenRouterKey(response) {
   const key = (await readJson(response))?.data;
   if (!key?.is_management_key && !key?.is_provisioning_key) return null;
   return { ...describeStatusFailure(401, "openrouter"), status: response.status };
+}
+
+// A missing file is the only 400 that means the speech model was accepted. Anything
+// that names a missing model, or rejects the key, is a real failure.
+function xaiSttProbeResult(status, body) {
+  const message = typeof body?.error === "string" ? body.error : "";
+  if (status === 400 && /file/i.test(message) && /url/i.test(message)) return null;
+  if (KEY_REJECTED_BY_BODY.xai(status, body)) {
+    return { ...describeStatusFailure(401, "xai"), status };
+  }
+  if (status === 404 || /does not exist|not have access/i.test(message)) {
+    return { ...MODEL_NOT_FOUND, status };
+  }
+  return describeStatusFailure(status, "xai");
+}
+
+async function probeXaiSpeechModel(request, model, fetchImpl) {
+  const body = new FormData();
+  body.append("model", model);
+  return probe(
+    XAI_STT_ENDPOINT,
+    request,
+    fetchImpl,
+    async (response) => {
+      if (response.ok) return null;
+      return xaiSttProbeResult(response.status, await readJson(response));
+    },
+    { method: "POST", body }
+  );
 }
 
 // A speech-only server may publish no model list. Its transcription address answers a

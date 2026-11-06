@@ -31,7 +31,7 @@ it('refuses providers outside the mobile allowlist', () => {
       selection: {
         mode: 'providers',
         providerId: 'xai',
-        modelId: 'grok-stt',
+        modelId: 'grok-voice-transcribe-2.0',
         credentialRef: 'provider.xai',
       },
       policy: { status: 'unmanaged' },

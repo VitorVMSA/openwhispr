@@ -170,11 +170,11 @@ test("a free plan can still disconnect a Linear login it has", async (t) => {
   assert.equal(hasButton(connected.container, "connectors.linear.connect"), false);
 });
 
-test("a free plan without a Linear login still sees what Linear does, with no button", async (t) => {
+test("a plan is not required to connect Linear", async (t) => {
   const { container } = await renderLinearRow(t, { status: DISCONNECTED, isPaid: false });
   assert.match(container.textContent, /connectors\.linear\.description/);
   assert.equal(hasButton(container, "integrations.api.viewPlans"), false);
-  assert.equal(hasButton(container, "connectors.linear.connect"), false);
+  assert.equal(hasButton(container, "connectors.linear.connect"), true);
 });
 
 test("with connectors turned off by the org, only Disconnect remains for a Linear login", async (t) => {

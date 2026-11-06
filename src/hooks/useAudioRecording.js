@@ -1052,7 +1052,7 @@ export const useAudioRecording = (toast, options = {}) => {
 
           // Cloud usage: limit reached after this transcription
           if (result.source === "openwhispr" && result.limitReached) {
-            // Notify control panel to show UpgradePrompt dialog
+            // Notify control panel so it can toast the weekly cloud limit
             window.electronAPI?.notifyLimitReached?.({
               wordsUsed: result.wordsUsed,
               limit:

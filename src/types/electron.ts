@@ -1171,44 +1171,6 @@ export interface ScreenRecordingAccessResult {
 
 export type CloudReasonPurpose = "cleanup" | "assistant" | "translation" | "noteFormatting";
 
-// Orukeet's audio language estimate, reported for the backend's per-user gate.
-export interface OrukeetLanguageRoutingTelemetry {
-  version: 1;
-  mode: "shadow" | "supported-0.30" | "supported-0.10";
-  auto: boolean;
-  eligible: boolean;
-  analyzedSeconds: number | null;
-  topLanguage: string | null;
-  topScore: number | null;
-  supportedScore: number | null;
-  legacyFallback: boolean;
-  top05Fallback: boolean;
-  candidate030: boolean | null;
-  candidate010: boolean | null;
-  selectedFallback: boolean;
-  fallbackAvailable: boolean;
-}
-export interface OrukeetCleanupTelemetry {
-  status: "complete" | "fallback" | "skipped";
-  model?: "gemma-4-12b";
-  processingMs?: number;
-  queueMs?: number;
-  firstTextMs?: number;
-  inputTokens?: number;
-  outputTokens?: number;
-}
-export interface OrukeetTelemetry {
-  orukeetLanguageRouting?: OrukeetLanguageRoutingTelemetry;
-  orukeetCleanup?: OrukeetCleanupTelemetry;
-}
-
-export interface SttDetectedLanguageFields {
-  sttDetectedLanguage?: string;
-  sttDetectedLanguageConfidence?: number;
-  sttDetectedLanguageAudioSeconds?: number;
-  sttDetectedLanguageStatus?: "detected" | "unknown";
-}
-
 export interface ScreenContextImage {
   mediaType: string;
   /** Base64 image bytes, no data-URL prefix. */
@@ -2620,6 +2582,7 @@ declare global {
       saveXaiKey?: (key: string) => Promise<void>;
       proxyXaiTranscription?: (data: {
         audioBuffer: ArrayBuffer;
+        model?: string;
         language?: string;
         keyterms?: string[];
       }) => Promise<ProxyTranscriptionResult>;
@@ -2915,12 +2878,7 @@ declare global {
           prompt?: string;
           useCase?: string;
           diarization?: boolean;
-          localDate?: string;
-          analyticsOccurredAt?: string;
-          // Why a managed-streaming user's dictation went batch (rollout metric).
-          streamingFallbackReason?: string;
-        } & SttDetectedLanguageFields &
-          OrukeetTelemetry
+        }
       ) => Promise<
         {
           success: boolean;
@@ -2930,6 +2888,8 @@ declare global {
           wordsUsed?: number;
           wordsRemaining?: number;
           limitReached?: boolean;
+          /** Detected language, used locally for wake-word routing. */
+          sttLanguage?: string;
         } & PolicyFailureMetadata
       >;
       cancelCloudTranscription?: () => void;
@@ -2950,9 +2910,7 @@ declare global {
           appCategory?: ToneAppCategory;
           language?: string;
           locale?: string;
-          streamingFallbackReason?: string;
-        } & SttDetectedLanguageFields &
-          OrukeetTelemetry
+        }
       ) => Promise<{
         success: boolean;
         text?: string;
@@ -2969,21 +2927,8 @@ declare global {
         text: string,
         audioDurationSeconds: number,
         opts?: {
-          sendLogs?: boolean;
-          sttProvider?: string;
-          sttModel?: string;
-          sttProcessingMs?: number;
-          sttLanguage?: string;
-          audioSizeBytes?: number;
-          audioFormat?: string;
-          clientTotalMs?: number;
           clientTranscriptionId?: string;
-          localDate?: string;
-          analyticsOccurredAt?: string;
-          analyticsWordCount?: number;
-          analyticsCounterVersion?: number;
-        } & SttDetectedLanguageFields &
-          OrukeetTelemetry
+        }
       ) => Promise<{
         success: boolean;
         wordsUsed?: number;

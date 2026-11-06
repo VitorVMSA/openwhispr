@@ -75,6 +75,7 @@ interface ToolExecutionResult {
 const BYOK_STREAM_PROVIDERS = [
   "openai",
   "groq",
+  "xai",
   "gemini",
   "anthropic",
   "tinfoil",
@@ -250,7 +251,15 @@ class ReasoningService extends BaseReasoningService {
 
   private async getApiKey(
     provider:
-      "openai" | "anthropic" | "gemini" | "groq" | "tinfoil" | "custom" | "openrouter" | "corti"
+      | "openai"
+      | "anthropic"
+      | "gemini"
+      | "groq"
+      | "xai"
+      | "tinfoil"
+      | "custom"
+      | "openrouter"
+      | "corti"
   ): Promise<string> {
     if (provider === "custom") {
       let customKey = "";
@@ -288,6 +297,7 @@ class ReasoningService extends BaseReasoningService {
           anthropic: () => window.electronAPI.getAnthropicKey(),
           gemini: () => window.electronAPI.getGeminiKey(),
           groq: () => window.electronAPI.getGroqKey(),
+          xai: () => window.electronAPI.getXaiKey?.(),
           openrouter: () => window.electronAPI.getOpenrouterKey(),
           tinfoil: () => window.electronAPI.getTinfoilKey?.(),
           corti: () => window.electronAPI.getCortiKey?.(),
@@ -1079,6 +1089,7 @@ class ReasoningService extends BaseReasoningService {
           }
         : {}),
       ...(reasoningEffort && provider === "groq" ? { groq: { reasoningEffort } } : {}),
+      ...(reasoningEffort && provider === "xai" ? { openai: { reasoningEffort } } : {}),
       ...(reasoningEffort && provider === "gemini"
         ? { google: { thinkingConfig: { thinkingLevel: reasoningEffort, includeThoughts: false } } }
         : {}),
@@ -1600,6 +1611,7 @@ class ReasoningService extends BaseReasoningService {
       | "anthropic"
       | "gemini"
       | "groq"
+      | "xai"
       | "mistral"
       | "tinfoil"
       | "custom"

@@ -41,7 +41,6 @@ import { getValidationMessage } from "../utils/hotkeyValidator";
 import { validateHotkeyForSlot } from "../utils/hotkeyValidation";
 import { getPlatform } from "../utils/platform";
 import { ACCESSIBILITY_SKIPPED_KEY, areRequiredPermissionsMet } from "../utils/permissions";
-import { cloudPost } from "../services/cloudApi";
 import { signOut } from "../lib/auth";
 import logger from "../utils/logger";
 import {
@@ -619,21 +618,6 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     [settings, t]
   );
 
-  const syncUseCases = useCallback(() => {
-    if (!isSignedIn || session.authPath === "guest") return;
-    cloudPost("/api/onboarding-intent", {
-      useCases: settings.onboardingUseCases,
-      note: settings.onboardingUseCaseNote || undefined,
-      spokenLanguages: settings.spokenLanguages,
-    }).catch((error) => logger.warn("Failed to sync onboarding intent", { error }, "onboarding"));
-  }, [
-    isSignedIn,
-    session.authPath,
-    settings.onboardingUseCaseNote,
-    settings.onboardingUseCases,
-    settings.spokenLanguages,
-  ]);
-
   const finalizeOnboarding = useCallback(
     async (mode: OnboardingCompletionMode) => {
       if (isFinishing) return;
@@ -798,8 +782,6 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       settings.setPreferredLanguage(
         settings.spokenLanguages.length === 1 ? settings.spokenLanguages[0] : "auto"
       );
-    } else if (currentStepId === "use-cases") {
-      syncUseCases();
     } else if (currentStepId === "dictation-hotkey") {
       const registered = await registerHotkey(withExtraDictationHotkeys(dictationHotkey));
       if (!registered) {
@@ -872,7 +854,6 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     settings,
     settingsStore,
     showFatalError,
-    syncUseCases,
     t,
     withExtraDictationHotkeys,
     setupDecisionPending,

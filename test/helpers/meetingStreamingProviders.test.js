@@ -72,6 +72,7 @@ test("deepgram and assemblyai are offered for note recording", async () => {
   const meetingIds = getMeetingStreamingTranscriptionProviders().map((provider) => provider.id);
   assert.ok(meetingIds.includes("deepgram"));
   assert.ok(meetingIds.includes("assemblyai"));
+  assert.ok(meetingIds.includes("xai"));
 });
 
 test("allow-list rejects unknown and batch-only providers", async () => {
@@ -85,7 +86,7 @@ test("allow-list rejects unknown and batch-only providers", async () => {
     "deepgram",
     "assemblyai",
     "mistral-realtime",
-    "grok-stt",
+    "grok-voice-transcribe-2.0",
     "",
     undefined,
   ]) {

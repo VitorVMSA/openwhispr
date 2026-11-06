@@ -265,11 +265,9 @@ async function setParticipation(
 ): Promise<AnalyticsParticipation> {
   const response = await cloudPatchForAuthGeneration<unknown>(
     "/api/analytics/participation",
-    // Joining starts account history reconciliation, so carry the calendar
-    // zone known by this device. Leaving does not start reconciliation.
-    enabled
-      ? { enabled, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" }
-      : { enabled },
+    // Participation is the leaderboard opt-in. The calendar zone used to ride
+    // along so the API could reconcile usage history; that is not sent.
+    { enabled },
     authGeneration
   );
   const participation = responseData(response, "leaderboard participation");

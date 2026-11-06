@@ -37,12 +37,7 @@ import { followsSystemDefaultMic } from "./micSelectionRecovery";
 import { isCacheableMicrophoneResolution, resolvePreferredMicrophone } from "./microphoneSelection";
 import { isStaleDeviceError } from "./staleMicDevice";
 import { shouldSaveDiscardedRecording } from "./discardedRecording";
-import {
-  ANALYTICS_COUNTER_VERSION,
-  countSpokenWords,
-  localDateKey,
-  resolveAnalyticsMode,
-} from "./analytics";
+import { countSpokenWords, localDateKey, resolveAnalyticsMode } from "./analytics";
 import {
   getSettings,
   useSettingsStore,
@@ -57,7 +52,6 @@ import {
   effectiveAudioRetentionDays,
   effectiveLocalHistoryEnabled,
   isAgentAllowed,
-  isCloudBackupAllowed,
   isLlmSelectionAllowed,
   isLocalChoiceRefusal,
   isLocalModelAllowedByPolicy,
@@ -254,20 +248,6 @@ function getEffectiveRetentionPreferences() {
     dataRetentionEnabled: effectiveLocalHistoryEnabled(policyState, settings.dataRetentionEnabled),
     audioRetentionDays: effectiveAudioRetentionDays(policyState, settings.audioRetentionDays),
   };
-}
-
-// Insights sync is opt-in, so nothing analytics-only may ride along on a cloud
-// request until the user has enabled it. History retention gates it too: the
-// local write below the same gate is skipped, and the cloud must not keep rows
-// the device never recorded. Managed workspaces that forbid cloud backup forbid
-// these counters with it — they are user data leaving the device like any other.
-function analyticsSyncEnabled(settings = getSettings()) {
-  return (
-    settings.isSignedIn &&
-    settings.insightsSyncEnabled &&
-    isCloudBackupAllowed(usePolicyStore.getState()) &&
-    getEffectiveRetentionPreferences().dataRetentionEnabled
-  );
 }
 
 // Shared by the agent route and its text-only retry, which needs the prompt
@@ -608,8 +588,12 @@ const PROXY_TRANSCRIPTION_PROVIDERS = {
   xai: {
     displayName: "xAI",
     ipc: () => window.electronAPI?.proxyXaiTranscription,
-    buildPayload: ({ audioBuffer, language, keyterms }) => {
-      const payload = { audioBuffer, language: language !== "auto" ? language : undefined };
+    buildPayload: ({ audioBuffer, model, language, keyterms }) => {
+      const payload = {
+        audioBuffer,
+        model,
+        language: language !== "auto" ? language : undefined,
+      };
       if (keyterms.length > 0) payload.keyterms = keyterms;
       return payload;
     },
@@ -3809,32 +3793,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const language = getBaseLanguageCode(this.getEffectiveSttLanguage(settings));
 
     const arrayBuffer = await audioBlob.arrayBuffer();
-    const audioSizeBytes = audioBlob.size;
-    const audioFormat = audioBlob.type;
     const opts = {};
     const analyticsOccurredAt = new Date(metadata.analyticsOccurredAt || Date.now());
     if (language) opts.language = language;
-    const streamingFallbackReason =
-      metadata.streamingFallbackReason ?? this.consumeStreamingFallbackReason(settings);
-    if (streamingFallbackReason) opts.streamingFallbackReason = streamingFallbackReason;
-    if (metadata.orukeetLanguageRouting)
-      opts.orukeetLanguageRouting = metadata.orukeetLanguageRouting;
-    if (metadata.orukeetCleanup) opts.orukeetCleanup = metadata.orukeetCleanup;
-    // Orukeet's audio estimate rides along for the backend's per-user gate
-    // only. It is never the declared `language`: /api/transcribe picks models
-    // by declared language, and the fallback must be the request the user
-    // would make without Orukeet.
-    const detectedLanguageFields = metadata.detectedLanguageFields || {};
-    Object.assign(opts, detectedLanguageFields);
-    if (analyticsSyncEnabled(settings)) {
-      opts.analyticsOccurredAt = analyticsOccurredAt.toISOString();
-      opts.localDate = localDateKey(analyticsOccurredAt);
-    }
-    // Only cloud cleanup writes a combined STT log; translation alone does not.
-    // A voice assistant recording never runs cleanup, so this upload is its log.
-    if (settings.useCleanupModel && isCloudCleanup && !this.voiceAgentRequested) {
-      opts.sendLogs = "false";
-    }
 
     const dictionaryPrompt = this.getWhisperPrompt(settings);
     if (dictionaryPrompt) opts.prompt = dictionaryPrompt;
@@ -3909,18 +3870,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
               ...toneStyle,
               language: this.getCleanupLanguage(settings),
               locale: settings.uiLanguage || "en",
-              streamingFallbackReason,
-              orukeetLanguageRouting: metadata.orukeetLanguageRouting,
-              orukeetCleanup: metadata.orukeetCleanup,
-              ...detectedLanguageFields,
-              sttProvider: result.sttProvider,
-              sttModel: result.sttModel,
-              sttProcessingMs: result.sttProcessingMs,
-              sttWordCount: result.sttWordCount,
-              sttLanguage: result.sttLanguage,
-              audioDurationMs: result.audioDurationMs,
-              audioSizeBytes,
-              audioFormat,
             });
             if (!res.success) {
               const err = new Error(res.error || "Cloud reasoning failed");
@@ -3955,20 +3904,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
             cleanup: isCloudCleanup
               ? {
                   mode: "cloudReason",
-                  meta: {
-                    streamingFallbackReason,
-                    orukeetLanguageRouting: metadata.orukeetLanguageRouting,
-                    orukeetCleanup: metadata.orukeetCleanup,
-                    ...detectedLanguageFields,
-                    sttProvider: result.sttProvider,
-                    sttModel: result.sttModel,
-                    sttProcessingMs: result.sttProcessingMs,
-                    sttWordCount: result.sttWordCount,
-                    sttLanguage: result.sttLanguage,
-                    audioDurationMs: result.audioDurationMs,
-                    audioSizeBytes,
-                    audioFormat,
-                  },
                   log: { level: "error", channel: "transcription" },
                 }
               : {
@@ -5307,20 +5242,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     throw err;
   }
 
-  // Why this cloud upload is batch instead of the managed Orukeet stream, for
-  // the rollout's fallback-rate metric. Cleared on read: it describes one recording.
-  consumeStreamingFallbackReason(settings) {
-    const reason = this.streamingFallbackReason;
-    this.streamingFallbackReason = null;
-    if (reason) return reason;
-    const route = resolveManagedOrukeetRoute({
-      settings,
-      sttConfig: this.sttConfig,
-      language: this.getEffectiveSttLanguage(settings),
-    });
-    return route === "language_unsupported" ? route : undefined;
-  }
-
   async startStreamingRecording(forceDefaultMic = false) {
     let acquiredStream = null;
     let usedPreparedCapture = false;
@@ -6102,13 +6023,8 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const stSettings = getSettings();
     const meteredByCloud = this._streamingMeteredByCloud;
     const streamingSttModel = stopResult?.model || "nova-3";
-    const streamingSttProcessingMs = Number.isFinite(orukeetFinal?.asrFinalMs)
-      ? Math.round(orukeetFinal.asrFinalMs)
-      : Math.round(tTerminate - t0);
-    const streamingAudioBytesSent = stopResult?.audioBytesSent || 0;
     const streamingSttLanguage =
       getBaseLanguageCode(this.getEffectiveSttLanguage(stSettings)) || undefined;
-    const streamingSttWordCount = countSpokenWords(finalText);
     // Reasoning below reassigns `finalText` to the cleaned-up/agent output, so
     // snapshot the pre-reasoning transcript now to report as `rawText` — matching
     // the batch path, which already keeps raw and processed text separate.
@@ -6130,22 +6046,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
           ? (this._activeStreamingConfig || this.sttConfig)?.orukeetLanguageRouting
           : undefined,
     });
-    const orukeetLanguageRouting = languageRouting.comparison
-      ? {
-          ...languageRouting.comparison,
-          fallbackAvailable:
-            fallbackBlob?.size > 0 && resolveStreamingFallbackTarget(stSettings) === "cloud",
-        }
-      : undefined;
     const orukeetCleanup = orukeetFinal?.cleanup;
-    const orukeetTelemetry = { orukeetLanguageRouting, orukeetCleanup };
-    // A request whose text isn't the combined cleanup (a language fallback, a
-    // cleanup redone through /api/reason, an agent command) must not report a
-    // completed Gemma cleanup as its own.
-    const uncombinedTelemetry = {
-      orukeetLanguageRouting,
-      orukeetCleanup: orukeetCleanup?.status === "complete" ? undefined : orukeetCleanup,
-    };
     if (isOrukeetStream && languageRouting.comparison) {
       logger.info(
         "Orukeet language routing comparison",
@@ -6200,12 +6101,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
           {
             durationSeconds,
             analyticsOccurredAt: analyticsOccurredAt.toISOString(),
-            streamingFallbackReason:
-              languageRouting.comparison && !languageRouting.comparison.legacyFallback
-                ? "language_supported_score_low"
-                : "language_detected_unsupported",
-            detectedLanguageFields,
-            ...uncombinedTelemetry,
           },
           wasCancelled
         );
@@ -6296,16 +6191,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
                   ...toneStyle,
                   language: this.getCleanupLanguage(stSettings),
                   locale: stSettings.uiLanguage || "en",
-                  sttProvider: providerName,
-                  sttModel: streamingSttModel,
-                  sttProcessingMs: streamingSttProcessingMs,
-                  sttWordCount: streamingSttWordCount,
-                  sttLanguage: streamingSttLanguage,
-                  ...detectedLanguageFields,
-                  ...uncombinedTelemetry,
-                  audioDurationMs: durationSeconds ? Math.round(durationSeconds * 1000) : undefined,
-                  audioSizeBytes: streamingAudioBytesSent || undefined,
-                  audioFormat: "linear16",
                 });
                 if (!res.success) {
                   const err = new Error(res.error || "Cloud reasoning failed");
@@ -6354,20 +6239,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
             cleanup: isCloudCleanup
               ? {
                   mode: "cloudReason",
-                  meta: {
-                    sttProvider: providerName,
-                    sttModel: streamingSttModel,
-                    sttProcessingMs: streamingSttProcessingMs,
-                    sttWordCount: streamingSttWordCount,
-                    sttLanguage: streamingSttLanguage,
-                    ...detectedLanguageFields,
-                    ...uncombinedTelemetry,
-                    audioDurationMs: durationSeconds
-                      ? Math.round(durationSeconds * 1000)
-                      : undefined,
-                    audioSizeBytes: streamingAudioBytesSent || undefined,
-                    audioFormat: "linear16",
-                  },
                   log: { level: "error", channel: "streaming" },
                 }
               : {
@@ -6466,13 +6337,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
                   {
                     durationSeconds,
                     analyticsOccurredAt: analyticsOccurredAt.toISOString(),
-                    // The tag feeds the Orukeet rollout's fallback rate; other
-                    // providers still fall back, just untagged. Only managed
-                    // Orukeet fails over, and its reason outlives the cached
-                    // config a refused start drops.
-                    ...(failoverReason || isOrukeetStream
-                      ? { streamingFallbackReason: failoverReason || "stream_no_final" }
-                      : {}),
                   },
                   wasCancelled
                 )
@@ -6502,7 +6366,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         if (wasCancelled()) return true;
       }
       const tBeforePaste = performance.now();
-      const clientTotalMs = Math.round(tBeforePaste - t0);
       const clientTranscriptionId =
         batchFallbackResult?.clientTranscriptionId || crypto.randomUUID();
       const resultAnalyticsOccurredAt =
@@ -6552,29 +6415,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
                 combinedCleanup ? rawStreamingText : finalText,
                 durationSeconds ?? 0,
                 {
-                  sendLogs: !usedCloudReasoning,
-                  sttProvider: providerName,
-                  sttModel: streamingSttModel,
-                  sttProcessingMs: streamingSttProcessingMs,
-                  sttLanguage: streamingSttLanguage,
-                  ...detectedLanguageFields,
-                  ...(combinedCleanup ? orukeetTelemetry : uncombinedTelemetry),
-                  audioSizeBytes: streamingAudioBytesSent || undefined,
-                  audioFormat: "linear16",
-                  clientTotalMs,
-                  // Always sent, like the batch cloud path: this id is what
-                  // makes the row the server writes and the local one the same
-                  // event. Held back until opt-in, a later sync would push the
-                  // local copy under a second id and double every total.
+                  // Same id as the local history row, so this metered stream
+                  // and a later sync are one event.
                   clientTranscriptionId,
-                  ...(analyticsSyncEnabled()
-                    ? {
-                        localDate: localDateKey(analyticsOccurredAt),
-                        analyticsOccurredAt: analyticsOccurredAt.toISOString(),
-                        analyticsWordCount: streamingSttWordCount,
-                        analyticsCounterVersion: ANALYTICS_COUNTER_VERSION,
-                      }
-                    : {}),
                 }
               );
               if (!res.success) {

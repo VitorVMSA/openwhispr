@@ -74,6 +74,28 @@ test("BYOK Deepgram and AssemblyAI route to their own realtime clients", async (
   }
 });
 
+test("BYOK xAI note recording uses the same speech model as dictation", async () => {
+  const { resolveMeetingTranscriptionOptions } = await load();
+
+  assert.deepEqual(
+    resolveMeetingTranscriptionOptions({
+      ...baseOptions,
+      selectedProvider: "xai",
+      selectedModel: "grok-voice-transcribe-2.0",
+      byokProviders: [
+        ...byokProviders,
+        { id: "xai", models: [{ id: "grok-voice-transcribe-2.0" }] },
+      ],
+    }),
+    {
+      provider: "xai-realtime",
+      model: "grok-voice-transcribe-2.0",
+      mode: "byok",
+      language: "en",
+    }
+  );
+});
+
 test("BYOK OpenAI never downgrades to managed cloud when its key is unavailable", async () => {
   const { resolveMeetingTranscriptionOptions } = await load();
 

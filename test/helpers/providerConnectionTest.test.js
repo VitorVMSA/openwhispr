@@ -575,6 +575,66 @@ test("Gemini, xAI and Corti rejections are read from the provider's error body",
   }
 });
 
+test("xAI speech models are checked on /v1/stt when the model list omits them", async () => {
+  const chatOnly = { data: [{ id: "grok-4.7" }] };
+  const missingFile = { error: "Either 'file' or 'url' must be provided" };
+  const accepted = recordingFetch((url) =>
+    jsonResponse(url.endsWith("/v1/stt") ? 400 : 200, url.endsWith("/v1/stt") ? missingFile : chatOnly)
+  );
+  assert.deepEqual(
+    await testProviderConnection(
+      { provider: "xai", apiKey: "k", model: "grok-voice-transcribe-2.0" },
+      accepted.fetchImpl
+    ),
+    { success: true }
+  );
+  assert.deepEqual(
+    accepted.calls.map((call) => [call.url, call.init.method]),
+    [
+      ["https://api.x.ai/v1/models", "GET"],
+      ["https://api.x.ai/v1/stt", "POST"],
+    ]
+  );
+  assert.equal(accepted.calls[1].init.redirect, "error");
+
+  const refused = recordingFetch((url) =>
+    jsonResponse(
+      url.endsWith("/v1/stt") ? 404 : 200,
+      url.endsWith("/v1/stt")
+        ? { error: "The model 'grok-voice-3.0' does not exist or your team does not have access to it" }
+        : chatOnly
+    )
+  );
+  const missing = await testProviderConnection(
+    { provider: "xai", apiKey: "k", model: "grok-voice-3.0" },
+    refused.fetchImpl
+  );
+  assert.equal(missing.errorCode, "modelNotFound");
+  assert.equal(missing.error, "The selected model is not available from this provider.");
+
+  const badKey = recordingFetch((url) =>
+    jsonResponse(url.endsWith("/v1/stt") ? 400 : 200, url.endsWith("/v1/stt") ? XAI_BAD_KEY : chatOnly)
+  );
+  const rejected = await testProviderConnection(
+    { provider: "xai", apiKey: "k", model: "grok-voice-transcribe-2.0" },
+    badKey.fetchImpl
+  );
+  assert.equal(rejected.errorCode, "credentialsRejected");
+
+  const listed = recordingFetch((url) => {
+    assert.equal(url, "https://api.x.ai/v1/models");
+    return jsonResponse(200, { data: [{ id: "grok-voice-transcribe-2.0" }] });
+  });
+  assert.deepEqual(
+    await testProviderConnection(
+      { provider: "xai", apiKey: "k", model: "grok-voice-transcribe-2.0" },
+      listed.fetchImpl
+    ),
+    { success: true }
+  );
+  assert.equal(listed.calls.length, 1);
+});
+
 test("an error body that never arrives is a timeout or a network failure", async () => {
   const aborted = Object.assign(new Error("This operation was aborted"), { name: "AbortError" });
   for (const [error, errorCode] of [

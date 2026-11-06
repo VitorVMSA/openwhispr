@@ -59,6 +59,7 @@ const CLOUD_PROVIDER_IDS = [
   "anthropic",
   "gemini",
   "groq",
+  "xai",
   OPENROUTER_TAB,
   "tinfoil",
   "corti",
@@ -360,6 +361,8 @@ export default function ReasoningModelSelector({
   const setGeminiApiKey = useSettingsStore((s) => s.setGeminiApiKey);
   const groqApiKey = useSettingsStore((s) => s.groqApiKey);
   const setGroqApiKey = useSettingsStore((s) => s.setGroqApiKey);
+  const xaiApiKey = useSettingsStore((s) => s.xaiApiKey);
+  const setXaiApiKey = useSettingsStore((s) => s.setXaiApiKey);
   const openrouterApiKey = useSettingsStore((s) => s.openrouterApiKey);
   const setOpenrouterApiKey = useSettingsStore((s) => s.setOpenrouterApiKey);
   const tinfoilApiKey = useSettingsStore((s) => s.tinfoilApiKey);
@@ -435,6 +438,7 @@ export default function ReasoningModelSelector({
       url: "https://aistudio.google.com/app/api-keys",
     },
     groq: { value: groqApiKey, set: setGroqApiKey, url: "https://console.groq.com/keys" },
+    xai: { value: xaiApiKey, set: setXaiApiKey, url: "https://console.x.ai" },
     tinfoil: {
       value: tinfoilApiKey,
       set: setTinfoilApiKey,

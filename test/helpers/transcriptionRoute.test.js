@@ -102,13 +102,24 @@ test("proxied providers carry their quirks as route data", async () => {
     cloudTranscriptionProvider: "xai",
     preferredLanguage: "mk",
   });
-  assert.equal(xai.model, "grok-stt", "recorded for history; executors omit the form field");
+  assert.equal(xai.model, "grok-voice-transcribe-2.0");
   assert.equal(xai.language, "mk");
+  const xaiChinese = await resolve({
+    cloudTranscriptionProvider: "xai",
+    preferredLanguage: "zh",
+  });
+  assert.equal(xaiChinese.language, "zh");
+  const xaiRetired = await resolve({
+    cloudTranscriptionProvider: "xai",
+    cloudTranscriptionModel: "grok-stt",
+    preferredLanguage: "en",
+  });
+  assert.equal(xaiRetired.model, "grok-voice-transcribe-2.0");
   const xaiUnsupported = await resolve({
     cloudTranscriptionProvider: "xai",
     preferredLanguage: "yo",
   });
-  assert.equal(xaiUnsupported.language, undefined, "outside the xAI ITN allowlist");
+  assert.equal(xaiUnsupported.language, undefined, "outside the xAI language list");
 
   const corti = await resolve({ cloudTranscriptionProvider: "corti", cortiTenant: " acme " });
   assert.equal(corti.model, "corti-transcribe");
@@ -455,4 +466,25 @@ test("Orukeet fallback preserves the custom Bearer key", async () => {
   });
   assert.equal(route.endpoint, "https://orukeet.gizmovoice.ai/v1/audio/transcriptions");
   assert.deepEqual(route.auth, { scheme: "bearer", keyRef: "custom" });
+});
+
+test("xAI STT fields name the documented model and format only where it applies", async () => {
+  const { xaiSttRequestFields } = await load();
+  assert.deepEqual(xaiSttRequestFields("grok-stt", "de"), [
+    ["model", "grok-voice-transcribe-2.0"],
+    ["language", "de"],
+    ["format", "true"],
+  ]);
+  assert.deepEqual(xaiSttRequestFields("grok-voice-transcribe-2.0", "mk"), [
+    ["model", "grok-voice-transcribe-2.0"],
+    ["language", "mk"],
+  ]);
+  assert.deepEqual(xaiSttRequestFields(undefined, "zh"), [
+    ["model", "grok-voice-transcribe-2.0"],
+    ["language", "zh"],
+    ["format", "true"],
+  ]);
+  assert.deepEqual(xaiSttRequestFields("grok-voice-transcribe-2.0", "yo"), [
+    ["model", "grok-voice-transcribe-2.0"],
+  ]);
 });

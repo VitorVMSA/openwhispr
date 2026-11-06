@@ -18,10 +18,9 @@ export interface SyncConsent {
  * is not a paid feature, and gating it on the *invitee's* plan silently
  * stranded free teammates in workspaces they had already been added to.
  *
- * Insights counters carry no content and are free, so they answer to their own
- * opt-in rather than the backup toggle or the plan. They still require local
- * history and are user data leaving the device, so org policy gates them like
- * backup.
+ * Insights counters stay on this device. The analytics flag is always false so
+ * a sync pass never uploads word counts, timestamps, durations, or model types,
+ * even when an older Insights Sync preference is still stored.
  */
 export function resolveSyncConsent(state: {
   authValidated: boolean;
@@ -36,11 +35,7 @@ export function resolveSyncConsent(state: {
   return {
     shared,
     backup: shared && state.backupEnabled && state.subscribed && state.backupAllowedByPolicy,
-    analytics:
-      shared &&
-      state.insightsSyncEnabled &&
-      state.backupAllowedByPolicy &&
-      state.dataRetentionEnabled,
+    analytics: false,
   };
 }
 

@@ -28,7 +28,7 @@ test("timestamp fields are requested only from providers/models that accept them
   // self-hosted server may 400 on fields it doesn't know.
   assert.equal(timestampRequestFields("custom", "whisper-1"), null);
   assert.equal(timestampRequestFields("self-hosted", "whisper-large-v3"), null);
-  assert.equal(timestampRequestFields("xai", "grok-stt"), null);
+  assert.equal(timestampRequestFields("xai", "grok-voice-transcribe-2.0"), null);
   assert.equal(timestampRequestFields(undefined, undefined), null);
 });
 

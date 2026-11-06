@@ -618,7 +618,7 @@
     },
     "limit": {
       "weeklyTitle": "Limite semanal da nuvem atingido",
-      "weeklyDescription": "Seu limite é redefinido continuamente. Faça upgrade para Pro ou use sua própria chave API para uso ilimitado."
+      "weeklyDescription": "Seu limite é redefinido continuamente. Sua própria chave de API e os modelos locais continuam sem limite."
     },
     "accessibilityMissing": {
       "title": "Permissões de acessibilidade necessárias",
@@ -1679,7 +1679,7 @@
       "title": "Conta",
       "toasts": {
         "approachingLimit": {
-          "description": "Você usou {{used}} de {{limit}} palavras do OpenWhispr Cloud esta semana. Faça upgrade para Pro para uso ilimitado.",
+          "description": "Você usou {{used}} de {{limit}} palavras do OpenWhispr Cloud esta semana.",
           "title": "Aproximando-se do limite de palavras da nuvem"
         }
       },
@@ -2915,7 +2915,7 @@
         "gemini_3_5_transcribe": "Fala para texto Gemini do Google",
         "gemini_3_5_transcribe_live": "Fala para texto em streaming em tempo real",
         "corti_transcribe": "Transcrição médica de nível clínico",
-        "xai_grok_stt": "Reconhecimento de voz de alta precisão pela xAI",
+        "xai_grok_voice_transcribe_2_0": "Reconhecimento de voz de alta precisão pela xAI",
         "tinfoil_voxtral": "Transcrição verificavelmente privada",
         "deepgram_nova_3": "O modelo em tempo real mais preciso da Deepgram",
         "assemblyai_universal_streaming_english": "Transcrições em tempo real imutáveis, em inglês",
@@ -2951,6 +2951,14 @@
         "groq_openai_gpt_oss_120b": "Modelo principal open source da OpenAI, 500 T/seg",
         "groq_qwen_qwen3_8_27b": "Modelo Qwen rápido, 450 T/seg, contexto de 131K",
         "groq_openai_gpt_oss_20b": "Modelo open source rápido, 1000 T/seg",
+        "xai_grok_4_7": "Modelo principal para código e conversa, contexto de 500K",
+        "xai_grok_4_6": "Modelo de código e agentes, contexto de 500K",
+        "xai_grok_4_5": "Modelo de código para trabalho com agentes, contexto de 500K",
+        "xai_grok_4_3": "Modelo rápido com ferramentas, contexto de 1M",
+        "xai_grok_4_20_0309_reasoning": "Modelo de raciocínio rápido, contexto de 1M",
+        "xai_grok_4_20_0309_non_reasoning": "Modelo rápido sem raciocínio, contexto de 1M",
+        "xai_grok_build_0_1": "Modelo de código, contexto de 256K",
+        "xai_grok_4_20_multi_agent_0309": "Agentes em paralelo para pesquisa, contexto de 1M",
         "openai_gpt_6_astra": "O modelo mais capaz da OpenAI para programação e pesquisa",
         "openai_gpt_5_6_sol": "GPT-5.6 principal para programação e pesquisa complexas",
         "openai_gpt_5_6_terra": "GPT-5.6 equilibrado para o trabalho do dia a dia",
@@ -3431,11 +3439,11 @@
       "fileTooLarge": "Este arquivo excede o limite de 500 MB.",
       "largeFileNote": "Arquivos grandes são divididos e transcritos em paralelo.",
       "chunkProgress": "Transcrevendo parte {{completed}} de {{total}}...",
-      "paidPlanRequired": "A transcrição na nuvem para arquivos acima de 25 MB requer um plano pago. Arquivos grandes são processados com o OpenWhispr Cloud para resultados confiáveis e de alta qualidade.",
+      "paidPlanRequired": "O OpenWhispr Cloud transcreve arquivos de até 25 MB. Este arquivo é maior do que isso.",
       "byokTooLarge": "Chaves API de terceiros suportam apenas arquivos de até {{size}} MB.",
-      "byokTooLargeDetail": "Para arquivos acima de {{size}} MB, o OpenWhispr Cloud cuida da divisão, processamento paralelo e remontagem — para resultados confiáveis sem depender dos limites de provedores de terceiros.",
-      "byokTooLargeNeedsAccount": "Crie uma conta e mude para um plano pago para transcrever arquivos maiores com o OpenWhispr Cloud.",
-      "byokTooLargeNeedsUpgrade": "Mude para um plano pago para transcrever arquivos maiores com o OpenWhispr Cloud.",
+      "byokTooLargeDetail": "Uma chave de API de terceiros não aceita arquivos acima de {{size}} MB.",
+      "byokTooLargeNeedsAccount": "Este arquivo é grande demais para uma chave de API de terceiros.",
+      "byokTooLargeNeedsUpgrade": "Este arquivo é grande demais para uma chave de API de terceiros.",
       "switchToCloudForLargeFiles": "Mude para o OpenWhispr Cloud para transcrever este arquivo.",
       "createAccount": "Criar conta",
       "upgrade": "Fazer upgrade",
@@ -3975,12 +3983,12 @@
         }
       },
       "locked": {
-        "noWorkspace": "Os dicionários compartilhados estão incluídos no Business. Compartilhe com todos o jargão, os nomes de produtos e as siglas da sua equipe.",
-        "upgradeAdmin": "Os dicionários compartilhados estão incluídos no Business. Faça o upgrade de {{workspace}} para que todos tenham as mesmas palavras.",
-        "upgradeMember": "Os dicionários compartilhados estão incluídos no Business. Peça a um administrador para fazer o upgrade de {{workspace}}.",
-        "paused_one": "A {{count}} palavra compartilhada de {{workspace}} está pausada. Faça o upgrade para o Business para usá-la novamente no ditado.",
-        "paused_many": "As {{count}} de palavras compartilhadas de {{workspace}} estão pausadas. Faça o upgrade para o Business para usá-las novamente no ditado.",
-        "paused_other": "As {{count}} palavras compartilhadas de {{workspace}} estão pausadas. Faça o upgrade para o Business para usá-las novamente no ditado.",
+        "noWorkspace": "Os dicionários compartilhados estão incluídos no Business.",
+        "upgradeAdmin": "Os dicionários compartilhados estão incluídos no Business para {{workspace}}.",
+        "upgradeMember": "Os dicionários compartilhados estão incluídos no Business. Um administrador de {{workspace}} trata disso.",
+        "paused_one": "A {{count}} palavra compartilhada de {{workspace}} está pausada.",
+        "paused_many": "As {{count}} palavras compartilhadas de {{workspace}} estão pausadas.",
+        "paused_other": "As {{count}} palavras compartilhadas de {{workspace}} estão pausadas.",
         "workspaceTitle": "Todos no seu espaço de trabalho",
         "workspaceDescription": "Palavras para a empresa toda",
         "spaceTitle": "Uma lista por espaço",
@@ -3991,9 +3999,9 @@
         "lockLabel": "Incluído no Business",
         "ssoRequired": "{{workspace}} exige o SSO da empresa. Saia e entre novamente com SSO para usar as palavras compartilhadas.",
         "noAccess": "Você não tem mais acesso às palavras compartilhadas de {{workspace}}. Fale com um administrador se achar que é um erro.",
-        "pausedMember_one": "A {{count}} palavra compartilhada de {{workspace}} está pausada. Peça a um administrador ou ao proprietário para fazer o upgrade para o Business para usá-la novamente no ditado.",
-        "pausedMember_many": "As {{count}} de palavras compartilhadas de {{workspace}} estão pausadas. Peça a um administrador ou ao proprietário para fazer o upgrade para o Business para usá-las novamente no ditado.",
-        "pausedMember_other": "As {{count}} palavras compartilhadas de {{workspace}} estão pausadas. Peça a um administrador ou ao proprietário para fazer o upgrade para o Business para usá-las novamente no ditado."
+        "pausedMember_one": "A {{count}} palavra compartilhada de {{workspace}} está pausada. Um administrador ou o proprietário trata disso.",
+        "pausedMember_many": "As {{count}} palavras compartilhadas de {{workspace}} estão pausadas. Um administrador ou o proprietário trata disso.",
+        "pausedMember_other": "As {{count}} palavras compartilhadas de {{workspace}} estão pausadas. Um administrador ou o proprietário trata disso."
       },
       "empty": {
         "body": "Adicione os termos que esta equipe usa ou compartilhe alguns da sua lista pessoal. Todos em {{list}} ({{count}}) vão recebê-los.",

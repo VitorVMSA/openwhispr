@@ -231,8 +231,9 @@ test("a stream counts toward Cloud usage by the credentials it started on", asyn
     });
     assert.equal(usageCalls.length, 1);
     assert.equal(usageCalls[0][0], "Words from this stream.");
-    assert.equal(usageCalls[0][2].sttProvider, "gemini");
-    assert.equal(usageCalls[0][2].sendLogs, true);
+    assert.equal(typeof usageCalls[0][2].clientTranscriptionId, "string");
+    assert.equal(Object.hasOwn(usageCalls[0][2], "sttProvider"), false);
+    assert.equal(Object.hasOwn(usageCalls[0][2], "sendLogs"), false);
     assert.deepEqual(events, ["usage-changed"]);
   });
 
@@ -494,7 +495,7 @@ async function startManagedOrukeetRecording(t, AudioManager) {
     deepgramStreamingFinalize: record("deepgram:finalize", { success: true }),
     deepgramStreamingStop: record("deepgram:stop", { success: true }),
     cloudStreamingUsage: async (_text, _durationSeconds, usage) => {
-      calls.push(`usage:${usage.sttProvider}:${usage.sttDetectedLanguage}`);
+      calls.push("usage");
       return { success: true };
     },
   });
@@ -528,7 +529,7 @@ test("stop finalizes the Orukeet stream after an STT config refresh reroutes whi
     "orukeet:start:orukeet-v0.1.0",
     "realtime:finalize",
     "realtime:stop",
-    "usage:orukeet:fr",
+    "usage",
   ]);
   assert.equal(completions.length, 1);
   assert.equal(completions[0].text, "Bonjour");
@@ -734,7 +735,7 @@ test("a stream without a final falls back to batch for every provider, tagged on
   }
 
   assert.deepEqual(uploads, [
-    ["orukeet", "stream_no_final"],
+    ["orukeet", undefined],
     ["openai-realtime", undefined],
     ["deepgram", undefined],
   ]);
@@ -1000,7 +1001,7 @@ test("a refused managed Orukeet start keeps its capture and uploads the opening 
   // Stopped well under the 2 s floor a streamed recording needs to fall back.
   await manager.stopStreamingRecording();
 
-  assert.deepEqual(uploads, [{ audio: "opening words", reason: "session_unavailable" }]);
+  assert.deepEqual(uploads, [{ audio: "opening words", reason: undefined }]);
   assert.deepEqual(errors, []);
 });
 
@@ -1026,7 +1027,7 @@ test("a managed Orukeet stream refused mid-recording keeps recording and uploads
   assert.equal(manager.isStreaming, true, "the recording is not cut off");
   assert.equal(manager._streamingStopPromise, null);
   await manager.stopStreamingRecording();
-  assert.deepEqual(uploads, [{ audio: "opening words", reason: "stream_no_final" }]);
+  assert.deepEqual(uploads, [{ audio: "opening words", reason: undefined }]);
   assert.deepEqual(errors, []);
 });
 
@@ -1057,7 +1058,7 @@ test("a managed Orukeet error while stop awaits the final still uploads a short 
   assert.equal(await manager.startStreamingRecording(), true);
   await manager.stopStreamingRecording();
 
-  assert.deepEqual(uploads, [{ audio: "opening words", reason: "stream_no_final" }]);
+  assert.deepEqual(uploads, [{ audio: "opening words", reason: undefined }]);
   assert.deepEqual(errors, []);
 });
 
@@ -1142,7 +1143,7 @@ test("a stop pressed while a refused managed Orukeet start settles uploads once"
   await starting;
 
   assert.equal(manager.isRecording, false, "the deferred stop ends the recording");
-  assert.deepEqual(uploads, [{ audio: "opening words", reason: "session_unavailable" }]);
+  assert.deepEqual(uploads, [{ audio: "opening words", reason: undefined }]);
   assert.deepEqual(errors, []);
 });
 
@@ -1192,7 +1193,7 @@ test("opening words streamed before a mid-recording drop still count as speech",
   manager.streamingProcessor.port.onmessage({ data: silentPcm() });
   await manager.stopStreamingRecording();
 
-  assert.deepEqual(uploads, [{ audio: "opening words", reason: "stream_no_final" }]);
+  assert.deepEqual(uploads, [{ audio: "opening words", reason: undefined }]);
 });
 
 test("a capacity-refused managed commit closes and uploads the whole short capture once", async (t) => {
@@ -1267,7 +1268,7 @@ test("a capacity-refused managed commit closes and uploads the whole short captu
   await Promise.all([manager.stopStreamingRecording(), manager.stopStreamingRecording()]);
 
   assert.equal(commits, 1);
-  assert.deepEqual(uploads, [{ audio: "opening words", reason: "stream_no_final" }]);
+  assert.deepEqual(uploads, [{ audio: "opening words", reason: undefined }]);
   assert.deepEqual(errors, []);
 });
 
@@ -1397,7 +1398,7 @@ test("a start refused as disabled keeps its tag after the cached config is dropp
   await manager.startStreamingRecording();
   await manager.stopStreamingRecording();
 
-  assert.deepEqual(uploads, [{ audio: "opening words", reason: "feature_disabled" }]);
+  assert.deepEqual(uploads, [{ audio: "opening words", reason: undefined }]);
 });
 
 test("signing out during a failed-over recording reports it and keeps the audio", async (t) => {
@@ -1613,8 +1614,8 @@ test("a confident unsupported estimate re-transcribes the kept recording through
     upload: async () => ({ text: "明日の会議", rawText: "明日の会議" }),
   });
   assert.equal(uploads.length, 1);
-  assert.equal(uploads[0].streamingFallbackReason, "language_detected_unsupported");
-  assert.deepEqual(uploads[0].detectedLanguageFields, JA_DETECTION);
+  assert.equal(Object.hasOwn(uploads[0], "streamingFallbackReason"), false);
+  assert.equal(Object.hasOwn(uploads[0], "detectedLanguageFields"), false);
   assert.equal(Object.hasOwn(uploads[0], "language"), false);
   assert.equal(published[0].text, "明日の会議");
   assert.equal(published[0].rawText, "明日の会議");
@@ -1658,14 +1659,14 @@ test("language re-transcription skips streaming cleanup", async (t) => {
   // The real batch path ran: an "auto" upload that never declares the estimate.
   assert.equal(transcribeOpts.length, 1);
   assert.equal(Object.hasOwn(transcribeOpts[0], "language"), false);
-  assert.equal(transcribeOpts[0].streamingFallbackReason, "language_detected_unsupported");
-  assert.equal(transcribeOpts[0].sttDetectedLanguage, "ja");
+  assert.equal(Object.hasOwn(transcribeOpts[0], "streamingFallbackReason"), false);
+  assert.equal(Object.hasOwn(transcribeOpts[0], "sttDetectedLanguage"), false);
   // One cleanup, on the Cloud transcript; Orukeet's text never reaches /api/reason.
   assert.deepEqual(
     reasonCalls.map(([text]) => text),
     ["明日の会議"]
   );
-  assert.equal(reasonCalls[0][1].sttDetectedLanguage, "ja");
+  assert.equal(Object.hasOwn(reasonCalls[0][1], "sttDetectedLanguage"), false);
   assert.equal(published[0].text, "明日の会議。");
   assert.equal(usage.length, 0);
 });
@@ -1697,7 +1698,7 @@ test("a low score, short window, supported or unknown estimate keeps the Orukeet
     assert.equal(uploads.length, 0);
     assert.equal(published[0].text, "ashita no kaigi");
     assert.equal(usage.length, 1);
-    assert.deepEqual(detectionFields(usage[0]), expected);
+    assert.deepEqual(detectionFields(usage[0]), {});
   }
 });
 
@@ -1710,7 +1711,7 @@ test("an explicit language setting never re-transcribes", async (t) => {
   });
   assert.equal(uploads.length, 0);
   assert.equal(published[0].text, "ashita no kaigi");
-  assert.deepEqual(detectionFields(usage[0]), JA_DETECTION);
+  assert.deepEqual(detectionFields(usage[0]), {});
 });
 
 test("an older gateway sends no detection fields", async (t) => {
@@ -1876,14 +1877,9 @@ test("kept Orukeet text carries the estimate into streaming cleanup and translat
       translationRequested ? "translated transcript" : "ashita no kaigi。",
       label
     );
-    // The cleanup call writes the combined log the backend's gate reads.
     assert.equal(reasonCalls.length, 1, label);
-    assert.deepEqual(
-      detectionFields(reasonCalls[0][1]),
-      { ...JA_DETECTION, sttDetectedLanguageConfidence: 0.89 },
-      label
-    );
-    assert.equal(usage[0].sendLogs, false, label);
+    assert.deepEqual(detectionFields(reasonCalls[0][1]), {}, label);
+    assert.equal(Object.hasOwn(usage[0], "sendLogs"), false, label);
   }
 });
 
@@ -2012,9 +2008,9 @@ test("language-score rollout modes reach the real finalization path without leak
     );
     if (mode !== "off") {
       assert.equal(globalThis.__orukeetRoutingLog[0].fallbackAvailable, true);
-      const telemetry = expected ? result.uploads[0] : result.usage[0];
-      assert.deepEqual(telemetry.orukeetLanguageRouting, globalThis.__orukeetRoutingLog[0]);
-      if (expected) assert.equal(telemetry.streamingFallbackReason, "language_supported_score_low");
+      const request = expected ? result.uploads[0] : result.usage[0];
+      assert.equal(Object.hasOwn(request, "orukeetLanguageRouting"), false);
+      assert.equal(Object.hasOwn(request, "streamingFallbackReason"), false);
     }
   }
 });
@@ -2117,13 +2113,10 @@ test("combined cleanup is reused once, while changed options or failed cleanup u
     assert.equal(usage.length, 1);
     // Raw words are billed only when the combined cleanup is the pasted text.
     assert.equal(usage[0].text, calls ? published[0].text : "please send invoice 128");
-    assert.equal(usage[0].sendLogs, calls === 0);
-    assert.equal(usage[0].sttProcessingMs, 103);
-    // A completed Gemma cleanup that wasn't used is never reported as this request's.
-    const reported = cleanupStatus === "fallback" || calls === 0;
-    assert.equal(usage[0].orukeetCleanup?.processingMs, reported ? 220 : undefined);
-    if (calls)
-      assert.equal(reasonCalls[0][1].orukeetCleanup?.status, reported ? "fallback" : undefined);
+    assert.equal(Object.hasOwn(usage[0], "sendLogs"), false);
+    assert.equal(Object.hasOwn(usage[0], "sttProcessingMs"), false);
+    assert.equal(Object.hasOwn(usage[0], "orukeetCleanup"), false);
+    if (calls) assert.equal(Object.hasOwn(reasonCalls[0][1], "orukeetCleanup"), false);
   }
 });
 
@@ -2154,8 +2147,8 @@ test("combined cleanup that never finished pastes the raw text with a cleanup no
   assert.equal(published[0].text, "please send invoice 128");
   assert.equal(published[0].cleanupFailure.messageKey, "app.toasts.cleanupFailed.title");
   assert.equal(usage[0].text, "please send invoice 128");
-  assert.equal(usage[0].sendLogs, true);
-  assert.deepEqual(usage[0].orukeetCleanup, { status: "fallback" });
+  assert.equal(Object.hasOwn(usage[0], "sendLogs"), false);
+  assert.equal(Object.hasOwn(usage[0], "orukeetCleanup"), false);
 });
 
 test("combined text never replaces an unsupported-language fallback", async (t) => {
@@ -2205,7 +2198,7 @@ test("ordinary Orukeet streams meter processed text and BYOK streams meter nothi
       continue;
     }
     assert.equal(result.usage[0].text, result.published[0].text);
-    assert.equal(result.usage[0].sendLogs, false);
+    assert.equal(Object.hasOwn(result.usage[0], "sendLogs"), false);
   }
 });
 
@@ -2220,7 +2213,7 @@ test("recording config snapshot survives a rollback until the next recording", a
     upload: async () => ({ text: "Cloud result" }),
   });
   assert.equal(result.uploads.length, 1);
-  assert.equal(result.uploads[0].orukeetLanguageRouting.mode, "supported-0.30");
+  assert.equal(Object.hasOwn(result.uploads[0], "orukeetLanguageRouting"), false);
   assert.equal(result.manager._activeStreamingConfig, null);
 });
 
@@ -2422,9 +2415,8 @@ test("streaming cleanup goes to Cloud only when the cleanup scope is OpenWhispr 
         routing.expected === "model" ? [LOCAL_CLEANUP_MODEL] : []
       );
       assert.equal(published[0].text, cleanedText("hello there", routing));
-      // Only a Cloud cleanup writes the combined log, so only it suppresses the STT one.
       assert.equal(usage.length, 1);
-      assert.equal(usage[0].sendLogs, routing.expected !== "cloud");
+      assert.equal(Object.hasOwn(usage[0], "sendLogs"), false);
     });
   }
 });
@@ -2486,8 +2478,7 @@ test("batch Cloud cleanup goes to Cloud only when the cleanup scope is OpenWhisp
       assert.equal(reasonCalls.length, routing.expected === "cloud" ? 1 : 0);
       assert.equal(localCalls.length, routing.expected === "model" ? 1 : 0);
       assert.equal(published[0].text, cleanedText("明日の会議", routing));
-      // Only a Cloud cleanup writes the combined log, so only it suppresses the STT one.
-      assert.equal(transcribeOpts[0].sendLogs, routing.expected === "cloud" ? "false" : undefined);
+      assert.equal(Object.hasOwn(transcribeOpts[0], "sendLogs"), false);
     });
   }
 });

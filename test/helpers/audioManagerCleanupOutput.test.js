@@ -104,8 +104,8 @@ test("invalid completed cleanup keeps raw text across dictation routes", async (
             }
             assert.equal(result.rawText, RAW);
             if (route === "streaming") {
-              // The successful /api/reason call already logged this dictation.
-              assert.equal(usageOptions?.sendLogs, false);
+              assert.equal(typeof usageOptions?.clientTranscriptionId, "string");
+              assert.equal(Object.hasOwn(usageOptions, "sendLogs"), false);
               assert.deepEqual(usageEvents, ["usage-changed"]);
             } else {
               // Cloud cleanup records no words, so an own-key stream has no

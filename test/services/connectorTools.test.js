@@ -823,7 +823,7 @@ test("find_contact keeps its turn out of the user's document, whatever it finds"
   assert.equal(await holdsFor("Gabe Torres"), 1);
 });
 
-test("connector plan eligibility uses usage data, then the persisted isSubscribed flag", async () => {
+test("connector plan eligibility does not require a paid plan", async () => {
   const { hasConnectorPlan } = await loadEligibility();
   const success = (isSubscribed, isTrial) => ({
     status: "success",
@@ -832,12 +832,11 @@ test("connector plan eligibility uses usage data, then the persisted isSubscribe
     isRefreshing: false,
   });
   assert.equal(hasConnectorPlan(success(false, true), false), true);
-  assert.equal(hasConnectorPlan(success(false, false), true), false);
-  // A fresh voice-window session never loads usage, so the isSubscribed flag
-  // the control panel persisted (the API sets it for trials too) decides.
+  assert.equal(hasConnectorPlan(success(true, false), false), true);
+  assert.equal(hasConnectorPlan(success(false, false), false), true);
   assert.equal(hasConnectorPlan({ status: "idle", accountId: null }, true), true);
-  assert.equal(hasConnectorPlan({ status: "idle", accountId: null }, false), false);
-  assert.equal(hasConnectorPlan({ status: "loading", accountId: "acct" }, false), false);
+  assert.equal(hasConnectorPlan({ status: "idle", accountId: null }, false), true);
+  assert.equal(hasConnectorPlan({ status: "loading", accountId: "acct" }, false), true);
 });
 
 test("connector tools register only when connectors are available", async () => {

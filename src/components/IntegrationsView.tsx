@@ -11,7 +11,7 @@ import { ConnectorsSection } from "./ConnectorsSection";
 import { BetaBadge } from "./connectors/BetaBadge";
 import { CONNECTOR_ROWS } from "./connectors/connectorRows";
 import { IntegrationsNav } from "./integrations/IntegrationsNav";
-import { IntegrationsPane, UpsellBar } from "./integrations/IntegrationsPane";
+import { IntegrationsPane } from "./integrations/IntegrationsPane";
 import { CalendarsPane } from "./integrations/CalendarsPane";
 import { SkillsPane } from "./integrations/SkillsPane";
 import { McpPane } from "./integrations/McpPane";
@@ -30,7 +30,6 @@ const { mcp: McpIcon, cli: CliIcon } = INTEGRATIONS_SECTION_ICONS;
 
 interface IntegrationsViewProps {
   isPaid: boolean;
-  onUpgrade: () => void;
   section: IntegrationsSection;
   onSectionChange: (section: IntegrationsSection) => void;
   /** Absent where the assistant isn't allowed: the Skills page then offers no chat. */
@@ -41,7 +40,6 @@ interface IntegrationsViewProps {
 
 export default function IntegrationsView({
   isPaid,
-  onUpgrade,
   section,
   onSectionChange,
   onStartSkillChat,
@@ -117,7 +115,7 @@ export default function IntegrationsView({
         titleBadge={<BetaBadge />}
         description={t("integrations.connectors.description")}
       >
-        <ConnectorsSection onUpgrade={onUpgrade} />
+        <ConnectorsSection />
       </IntegrationsPane>
     ),
     skills: (
@@ -136,59 +134,49 @@ export default function IntegrationsView({
         description={t("integrations.api.description")}
         docsUrl={API_DOCS_URL}
         actions={
-          isPaid && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!canCreateKey}
-              onClick={() => setCreateKeyRequest((request) => request + 1)}
-            >
-              <Plus className="h-3.5 w-3.5 me-1.5" />
-              {t("apiKeysSection.createButton")}
-            </Button>
-          )
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!canCreateKey}
+            onClick={() => setCreateKeyRequest((request) => request + 1)}
+          >
+            <Plus className="h-3.5 w-3.5 me-1.5" />
+            {t("apiKeysSection.createButton")}
+          </Button>
         }
       >
-        {isPaid ? (
-          <>
-            <ApiKeysSection createRequest={createKeyRequest} onCanCreateChange={setCanCreateKey} />
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 ps-1 text-xs text-muted-foreground">
-              <span>{t("integrations.api.useWith")}</span>
-              {(
-                [
-                  ["mcp", McpIcon],
-                  ["cli", CliIcon],
-                ] as const
-              ).map(([id, Icon]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => openSection(id)}
-                  className="inline-flex items-center gap-1 rounded-sm text-primary/80 hover:text-primary outline-none focus-visible:ring-1 focus-visible:ring-primary/30 transition-colors"
-                >
-                  <Icon size={13} />
-                  {titleOf(id)}
-                </button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <UpsellBar message={t("integrations.api.proRequired")} onUpgrade={onUpgrade} />
-        )}
+        <ApiKeysSection createRequest={createKeyRequest} onCanCreateChange={setCanCreateKey} />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 ps-1 text-xs text-muted-foreground">
+          <span>{t("integrations.api.useWith")}</span>
+          {(
+            [
+              ["mcp", McpIcon],
+              ["cli", CliIcon],
+            ] as const
+          ).map(([id, Icon]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => openSection(id)}
+              className="inline-flex items-center gap-1 rounded-sm text-primary/80 hover:text-primary outline-none focus-visible:ring-1 focus-visible:ring-primary/30 transition-colors"
+            >
+              <Icon size={13} />
+              {titleOf(id)}
+            </button>
+          ))}
+        </div>
       </IntegrationsPane>
     ),
     mcp: (
       <McpPane
         title={titleOf("mcp")}
-        isPaid={isPaid}
-        onUpgrade={onUpgrade}
         onCreateKey={() => {
           setCreateKeyRequest((request) => request + 1);
           openSection("api");
         }}
       />
     ),
-    cli: <CliPane title={titleOf("cli")} isPaid={isPaid} onUpgrade={onUpgrade} />,
+    cli: <CliPane title={titleOf("cli")} />,
   };
 
   return (

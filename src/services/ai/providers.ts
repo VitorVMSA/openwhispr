@@ -40,6 +40,10 @@ export async function getAIModel(
       return createOpenAI({ apiKey })(model);
     case "groq":
       return createGroq({ apiKey })(model);
+    case "xai":
+      // xAI's chat API is OpenAI-compatible Chat Completions. The Responses
+      // default would only send reasoning effort for OpenAI model ids.
+      return createOpenAI({ apiKey, baseURL: API_ENDPOINTS.XAI_BASE }).chat(model);
     case "anthropic":
       // The assistant panel runs in the pill window, which keeps Chromium's
       // default webSecurity (the deleted agent overlay disabled it). Anthropic

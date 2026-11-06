@@ -181,17 +181,17 @@ async function renderView(
   return { container, upgrades, openedUrls };
 }
 
-test("sectionMeta shows counts on a paid plan and plan badges on a free one", async (t) => {
+test("sectionMeta shows connection counts, and a free badge only on the CLI", async (t) => {
   const vite = await createRendererServer(t, {
     cachePrefix: "openwhispr-integrations-sections-test-",
   });
   const { sectionMeta } = await vite.ssrLoadModule(
     "/components/integrations/integrationsSections.ts"
   );
-  const connectors = (isPaid, ready, blockedByOrg = false) => ({ isPaid, blockedByOrg, ready });
-  const paid = { isPaid: true, connectors: connectors(true, 2), connectedCalendars: 1 };
-  const free = { isPaid: false, connectors: connectors(false, 0), connectedCalendars: 1 };
-  const empty = { isPaid: true, connectors: connectors(true, 0), connectedCalendars: 0 };
+  const connectors = (ready, blockedByOrg = false) => ({ blockedByOrg, ready });
+  const paid = { isPaid: true, connectors: connectors(2), connectedCalendars: 1 };
+  const free = { isPaid: false, connectors: connectors(0), connectedCalendars: 1 };
+  const empty = { isPaid: true, connectors: connectors(0), connectedCalendars: 0 };
 
   assert.deepEqual(sectionMeta("connectors", paid), { kind: "count", value: 2 });
   assert.deepEqual(sectionMeta("calendars", paid), { kind: "count", value: 1 });
@@ -199,18 +199,22 @@ test("sectionMeta shows counts on a paid plan and plan badges on a free one", as
   assert.equal(sectionMeta("mcp", paid), null);
   assert.equal(sectionMeta("cli", paid), null);
 
-  assert.deepEqual(sectionMeta("connectors", free), { kind: "badge", badge: "pro" });
+  assert.equal(sectionMeta("connectors", free), null);
   assert.deepEqual(sectionMeta("calendars", free), { kind: "count", value: 1 });
-  assert.deepEqual(sectionMeta("api", free), { kind: "badge", badge: "pro" });
-  assert.deepEqual(sectionMeta("mcp", free), { kind: "badge", badge: "pro" });
+  assert.equal(sectionMeta("api", free), null);
+  assert.equal(sectionMeta("mcp", free), null);
   assert.deepEqual(sectionMeta("cli", free), { kind: "badge", badge: "free" });
+  assert.deepEqual(sectionMeta("connectors", { ...free, connectors: connectors(3) }), {
+    kind: "count",
+    value: 3,
+  });
 
   assert.equal(sectionMeta("connectors", empty), null);
   assert.equal(sectionMeta("calendars", empty), null);
 
-  // The organization turned connectors off: no plan badge and no count, on any plan.
+  // The organization turned connectors off: no count, on any plan.
   for (const isPaid of [true, false]) {
-    const blocked = { ...paid, isPaid, connectors: connectors(isPaid, 2, true) };
+    const blocked = { ...paid, isPaid, connectors: connectors(2, true) };
     assert.equal(sectionMeta("connectors", blocked), null);
   }
 });
@@ -379,49 +383,37 @@ test("a paid plan sees how many connectors and calendars are connected", async (
   assert.equal(label(navButton(container, "api")), "integrations.nav.sections.api");
 });
 
-test("the Connectors tag follows the plan check the Connectors pane uses", async (t) => {
-  // Usage still loading: the page counts as paid, while connectors fall back to
-  // the saved subscription flag, as the pane does.
+test("connectors, API keys and MCP show no plan badge when the account is not paid", async (t) => {
   const { container } = await renderView(t, {
-    isPaid: true,
+    isPaid: false,
     connectorAccess: { isPaid: false, blockedByOrg: false, connectorsAllowed: false },
   });
 
-  assert.equal(
-    label(navButton(container, "connectors")),
-    "integrations.nav.sections.connectorsintegrations.plan.pro"
-  );
+  assert.equal(label(navButton(container, "connectors")), "integrations.nav.sections.connectors");
   assert.equal(label(navButton(container, "api")), "integrations.nav.sections.api");
+  assert.equal(label(navButton(container, "mcp")), "integrations.nav.sections.mcp");
 });
 
-test("a free plan sees plan badges, the API upsell, and no key list", async (t) => {
-  const { container, upgrades } = await renderView(t, { isPaid: false, section: "api" });
+test("a free plan sees API keys, and only the CLI keeps a plan badge", async (t) => {
+  const { container } = await renderView(t, { isPaid: false, section: "api" });
 
-  assert.equal(
-    label(navButton(container, "connectors")),
-    "integrations.nav.sections.connectorsintegrations.plan.pro"
-  );
-  assert.equal(
-    label(navButton(container, "mcp")),
-    "integrations.nav.sections.mcpintegrations.plan.pro"
-  );
+  assert.equal(label(navButton(container, "connectors")), "integrations.nav.sections.connectors");
+  assert.equal(label(navButton(container, "mcp")), "integrations.nav.sections.mcp");
   assert.equal(
     label(navButton(container, "cli")),
     "integrations.nav.sections.cliintegrations.cli.local.freeBadge"
   );
-  assert.match(shownText(container), /integrations\.api\.proRequired/);
-  assert.doesNotMatch(container.textContent, /API KEYS SECTION/);
-
-  await React.act(async () => click(buttonWithText(container, "integrations.api.viewPlans")));
-  assert.equal(upgrades.count, 1);
+  assert.doesNotMatch(shownText(container), /integrations\.api\.proRequired/);
+  assert.doesNotMatch(shownText(container), /integrations\.api\.viewPlans/);
+  assert.match(shownText(container), /API KEYS SECTION/);
 });
 
-test("a free plan still sees MCP's setup steps, with Create API key disabled", async (t) => {
+test("a free plan sees MCP's setup steps, with Create API key enabled", async (t) => {
   const { container } = await renderView(t, { isPaid: false, section: "mcp" });
 
-  assert.match(container.textContent, /integrations\.mcp\.proRequired/);
+  assert.doesNotMatch(container.textContent, /integrations\.mcp\.proRequired/);
   assert.match(container.textContent, /https:\/\/mcp\.openwhispr\.com\/mcp/);
-  assert.notEqual(
+  assert.equal(
     buttonWithText(container, "apiKeysSection.createButton").getAttribute("disabled"),
     null
   );
@@ -459,8 +451,8 @@ test("MCP offers OAuth and API-key alternatives on free and paid plans", async (
       assert.match(shownText(container), /integrations\.mcp\.apiKeyDescription/);
       assert.match(shownText(container), /Authorization: Bearer YOUR_API_KEY/);
       assert.equal(
-        buttonWithText(container, "apiKeysSection.createButton").getAttribute("disabled") !== null,
-        !isPaid
+        buttonWithText(container, "apiKeysSection.createButton").getAttribute("disabled"),
+        null
       );
     });
 });

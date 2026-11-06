@@ -55,6 +55,14 @@ const REALTIME_TOKEN_PROVIDERS = {
     });
   },
 
+  "xai-realtime": async ({ environmentManager }, _options, streams) => {
+    const apiKey = environmentManager.getXaiKey?.();
+    if (!apiKey) {
+      throw new Error("No xAI API key configured. Add your key in Settings.");
+    }
+    return duplicate(streams, apiKey);
+  },
+
   "deepgram-realtime": async ({ environmentManager, postServerToken }, options, streams) => {
     if (options.mode === "byok") {
       const apiKey = environmentManager.getDeepgramKey();

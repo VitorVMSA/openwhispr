@@ -54,9 +54,42 @@ const FATAL_CHUNK_CODES = new Set(["AUTH_EXPIRED", "LIMIT_REACHED", ...AUDIO_POL
 
 const NON_RETRYABLE_CHUNK_CODES = new Set([...FATAL_CHUNK_CODES, "NO_SPEECH_DETECTED"]);
 
+// Chunk bodies carry the transcription itself. Usage and client-reporting
+// fields stay off every chunk, including the first.
+const CHUNK_ANALYTICS_FIELDS = new Set([
+  "localDate",
+  "analyticsOccurredAt",
+  "analyticsWordCount",
+  "analyticsCounterVersion",
+  "sessionId",
+  "clientType",
+  "appVersion",
+  "clientVersion",
+  "sendLogs",
+  "streamingFallbackReason",
+  "sttProvider",
+  "sttModel",
+  "sttProcessingMs",
+  "sttWordCount",
+  "sttLanguage",
+  "sttDetectedLanguage",
+  "sttDetectedLanguageConfidence",
+  "sttDetectedLanguageAudioSeconds",
+  "sttDetectedLanguageStatus",
+  "orukeetLanguageRouting",
+  "orukeetCleanup",
+  "audioDurationMs",
+  "audioSizeBytes",
+  "audioFormat",
+  "clientTotalMs",
+]);
+
 function withoutChunkAnalytics(fields) {
-  const { localDate, analyticsOccurredAt, ...transcriptionFields } = fields;
-  return transcriptionFields;
+  const kept = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (!CHUNK_ANALYTICS_FIELDS.has(key)) kept[key] = value;
+  }
+  return kept;
 }
 
 function isTransientChunkError(err) {

@@ -22,15 +22,12 @@ test("the leaderboard is tabbed inside the Insights view", () => {
   assert.ok(insights.includes('t("insights.yourUsage")'));
   assert.ok(insights.includes('value="leaderboard"'));
   assert.ok(insights.includes("<LeaderboardView"));
-  assert.ok(insights.includes("syncService.syncAnalyticsNow()"));
-  assert.ok(insights.includes("const authValidated = hasValidatedAuthContext()"));
-  assert.ok(insights.includes("isSignedIn &&\n    authValidated &&\n    insightsSyncEnabled"));
+  assert.equal(insights.includes("syncService.syncAnalyticsNow()"), false);
+  assert.equal(insights.includes("getAccountAnalyticsSummary"), false);
   assert.equal(insights.includes("syncPendingAnalytics"), false);
-  assert.ok(insights.includes("onClick={() => void enableInsightsSync()}"));
-  assert.ok(insights.includes('"insights.enableSync"'));
-  assert.ok(insights.includes("onSyncErrorChange={setSyncError}"));
+  assert.equal(insights.includes("onClick={() => void enableInsightsSync()}"), false);
+  assert.ok(insights.includes('t("insights.onDevice")'));
   assert.ok(insights.includes('activeTab === "usage"'));
-  assert.ok(insights.includes('variant="default"'));
   assert.ok(insights.includes("participationReady &&"));
   assert.ok(insights.includes("participationError === null"));
   assert.ok(insights.includes("!participationEnabled"));
@@ -43,7 +40,7 @@ test("the leaderboard is tabbed inside the Insights view", () => {
     insights.indexOf('<TabsContent value="usage"'),
     insights.indexOf('<TabsContent value="leaderboard"')
   );
-  assert.ok(usageContent.includes("isLoaded && !syncActive"));
+  assert.ok(usageContent.includes("isLoaded &&"));
   assert.ok(usageContent.includes('t("insights.onDevicePrivacy")'));
   assert.ok(usageContent.includes("mt-auto pt-8"));
   assert.equal(

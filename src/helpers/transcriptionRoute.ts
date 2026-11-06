@@ -143,34 +143,86 @@ export type TranscriptionRoute =
       language?: string;
     };
 
-// xAI STT supports 25 languages; language must be in this set to enable ITN via format=true
+// Documented batch model. grok-voice-transcribe-1.0 reached end of life on
+// 2026-10-02 and is no longer offered; requests that omit `model` are not
+// pinned to this id.
+export const XAI_STT_MODEL = "grok-voice-transcribe-2.0";
+
+// Languages grok-voice-transcribe-2.0 transcribes. A code outside this set is
+// omitted so a hint the model does not know cannot bias the transcript.
 export const XAI_STT_LANGUAGES = new Set([
   "ar",
+  "bg",
+  "bs",
+  "ca",
   "cs",
   "da",
   "de",
+  "el",
   "en",
   "es",
   "fa",
+  "fi",
   "fil",
   "fr",
   "hi",
+  "hr",
+  "hu",
   "id",
   "it",
   "ja",
   "ko",
   "mk",
   "ms",
+  "nb",
   "nl",
   "pl",
   "pt",
   "ro",
   "ru",
+  "sk",
   "sv",
   "th",
   "tr",
+  "uk",
+  "ur",
   "vi",
+  "yue",
+  "zh",
 ]);
+
+// format=true (inverse text normalization) only applies here. Elsewhere it has
+// no effect, and format without a language is rejected.
+export const XAI_STT_FORMAT_LANGUAGES = new Set([
+  "ar",
+  "de",
+  "en",
+  "es",
+  "fr",
+  "ja",
+  "pt",
+  "ru",
+  "sv",
+  "vi",
+  "zh",
+]);
+
+// Multipart fields for POST /v1/stt, in the order xAI requires: every option
+// before `file`. A stored `grok-stt` (the id this app used to show) is not on
+// GET /v1/models, so it falls through to grok-voice-transcribe-2.0, which
+// POST /v1/stt accepts even though that list omits speech models.
+export function xaiSttRequestFields(
+  model: string | null | undefined,
+  language?: string | null
+): Array<[string, string]> {
+  const fields: Array<[string, string]> = [["model", resolveByokModel("xai", model || undefined)]];
+  const code = (language || "").trim();
+  if (code && code !== "auto" && XAI_STT_LANGUAGES.has(code)) {
+    fields.push(["language", code]);
+    if (XAI_STT_FORMAT_LANGUAGES.has(code)) fields.push(["format", "true"]);
+  }
+  return fields;
+}
 
 // Prefix-matched rather than registry-checked on purpose: this module loads in
 // the packaged main process without the registry, and strict validation would
@@ -190,13 +242,14 @@ export function resolveByokModel(provider: string, configuredModel?: string): st
       (provider === "mistral" && trimmed.startsWith("voxtral-")) ||
       (provider === "corti" && trimmed.startsWith("corti-")) ||
       (provider === "gemini" && trimmed.startsWith("gemini-")) ||
+      (provider === "xai" && trimmed.startsWith("grok-voice-transcribe-")) ||
       (provider === "deepgram" && (trimmed.startsWith("nova-") || trimmed.startsWith("flux-"))) ||
       (provider === "assemblyai" &&
         (trimmed.startsWith("universal-") || trimmed.startsWith("slam-")));
     if (matchesProvider) return trimmed;
   }
   if (provider === "groq") return "whisper-large-v3-turbo";
-  if (provider === "xai") return "grok-stt";
+  if (provider === "xai") return XAI_STT_MODEL;
   if (provider === "mistral") return "voxtral-mini-latest";
   if (provider === "corti") return "corti-transcribe";
   if (provider === "gemini") return "gemini-3.5-transcribe";
@@ -337,8 +390,8 @@ export function resolveTranscriptionRoute({
     return {
       transport: "proxied",
       provider,
-      // Tinfoil's attested client resolves its own model; xAI's API takes none.
-      model: provider === "mistral" ? model : provider === "xai" ? "grok-stt" : null,
+      // Tinfoil's attested client resolves its own model.
+      model: provider === "mistral" || provider === "xai" ? model : null,
       language:
         provider === "xai" && language && !XAI_STT_LANGUAGES.has(language) ? undefined : language,
       sizeCapBytes: BYOK_FILE_SIZE_LIMIT,

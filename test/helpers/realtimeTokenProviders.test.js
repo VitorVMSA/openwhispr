@@ -403,6 +403,33 @@ test("server tokens: a success posts the body with credential and policy headers
   assert.equal(requests[0].init.body, '{"streams":1}');
 });
 
+test("xAI note recording reuses the saved BYOK key on both streams", async () => {
+  const { fetchRealtimeTokenForProvider } = await load();
+  const xaiDeps = deps({
+    environmentManager: { getXaiKey: () => "xai-test-key" },
+  });
+  assert.equal(
+    await fetchRealtimeTokenForProvider("xai-realtime", xaiDeps, { mode: "byok" }),
+    "xai-test-key"
+  );
+  assert.deepEqual(
+    await fetchRealtimeTokenForProvider("xai-realtime", xaiDeps, { mode: "byok" }, { streams: 2 }),
+    ["xai-test-key", "xai-test-key"]
+  );
+  await assert.rejects(
+    fetchRealtimeTokenForProvider(
+      "xai-realtime",
+      deps({ environmentManager: { getXaiKey: () => "" } }),
+      { mode: "byok" }
+    ),
+    /No xAI API key configured/
+  );
+  assert.equal(
+    await fetchRealtimeTokenForProvider("xai-realtime", xaiDeps, { mode: "openwhispr" }),
+    "xai-test-key"
+  );
+});
+
 test("server tokens: only session refusals count as sign-in refusals", async () => {
   const { isSignInRefusal } = await load();
   const refusal = async (overrides) => {

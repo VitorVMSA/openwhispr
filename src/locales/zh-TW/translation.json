@@ -639,7 +639,7 @@
     },
     "limit": {
       "weeklyTitle": "已達本週雲端上限",
-      "weeklyDescription": "你的額度為滾動式重置。升級至 Pro 或使用自己的 API Key 即可無限使用。"
+      "weeklyDescription": "你的額度為滾動式重置。自己的 API Key 和本機模型不受此額度限制。"
     },
     "accessibilityMissing": {
       "title": "需要輔助使用權限",
@@ -1700,7 +1700,7 @@
       "title": "帳號",
       "toasts": {
         "approachingLimit": {
-          "description": "本週已使用 {{used}} / {{limit}} 個 OpenWhispr Cloud 字。升級至 Pro 即可無限使用。",
+          "description": "本週已使用 {{used}} / {{limit}} 個 OpenWhispr Cloud 字數。",
           "title": "即將達到雲端字數上限"
         }
       },
@@ -2936,7 +2936,7 @@
         "gemini_3_5_transcribe": "Google Gemini 語音轉文字",
         "gemini_3_5_transcribe_live": "即時串流語音轉文字",
         "corti_transcribe": "臨床級醫療轉錄",
-        "xai_grok_stt": "xAI 高精度語音辨識",
+        "xai_grok_voice_transcribe_2_0": "xAI 高精度語音辨識",
         "tinfoil_voxtral": "可驗證的私密轉錄",
         "deepgram_nova_3": "Deepgram 最精準的即時模型",
         "assemblyai_universal_streaming_english": "不會變動的即時轉錄（英文）",
@@ -2972,6 +2972,14 @@
         "groq_openai_gpt_oss_120b": "OpenAI 開源旗艦，500 T/sec",
         "groq_qwen_qwen3_8_27b": "快速 Qwen 模型，450 T/sec，131K 上下文",
         "groq_openai_gpt_oss_20b": "快速開源模型，1000 T/sec",
+        "xai_grok_4_7": "程式與對話的旗艦模型，50萬上下文",
+        "xai_grok_4_6": "程式與代理模型，50萬上下文",
+        "xai_grok_4_5": "面向代理工作的程式模型，50萬上下文",
+        "xai_grok_4_3": "支援工具呼叫的快速模型，100萬上下文",
+        "xai_grok_4_20_0309_reasoning": "快速推理模型，100萬上下文",
+        "xai_grok_4_20_0309_non_reasoning": "不推理的快速模型，100萬上下文",
+        "xai_grok_build_0_1": "程式模型，25.6萬上下文",
+        "xai_grok_4_20_multi_agent_0309": "用於研究的平行代理，100萬上下文",
         "openai_gpt_6_astra": "OpenAI 最強大的模型，適用於編碼與研究",
         "openai_gpt_5_6_sol": "旗艦 GPT-5.6，適用於複雜編碼與研究",
         "openai_gpt_5_6_terra": "均衡的 GPT-5.6，適合日常工作",
@@ -3431,11 +3439,11 @@
       "fileTooLarge": "此檔案超過 500 MB 的大小限制。",
       "largeFileNote": "大型檔案將被分割並平行轉錄。",
       "chunkProgress": "正在轉錄第 {{completed}} 部分，共 {{total}} 部分...",
-      "paidPlanRequired": "超過 25 MB 的檔案需要付費方案才能使用雲端轉錄。大型檔案透過 OpenWhispr Cloud 處理，確保可靠、高品質的結果。",
+      "paidPlanRequired": "OpenWhispr Cloud 可轉錄不超過 25 MB 的檔案。此檔案超過了該大小。",
       "byokTooLarge": "第三方 API 金鑰僅支援 {{size}} MB 以內的檔案。",
-      "byokTooLargeDetail": "超過 {{size}} MB 的檔案由 OpenWhispr Cloud 負責分割、平行處理和重組——無需依賴第三方服務限制，即可獲得可靠的結果。",
-      "byokTooLargeNeedsAccount": "建立帳戶並升級至付費方案，即可使用 OpenWhispr Cloud 轉錄更大的檔案。",
-      "byokTooLargeNeedsUpgrade": "升級至付費方案，即可使用 OpenWhispr Cloud 轉錄更大的檔案。",
+      "byokTooLargeDetail": "第三方 API Key 不接受超過 {{size}} MB 的檔案。",
+      "byokTooLargeNeedsAccount": "此檔案對於第三方 API Key 來說太大。",
+      "byokTooLargeNeedsUpgrade": "此檔案對於第三方 API Key 來說太大。",
       "switchToCloudForLargeFiles": "切換到 OpenWhispr Cloud 來轉錄此檔案。",
       "createAccount": "建立帳戶",
       "upgrade": "升級",
@@ -3963,11 +3971,11 @@
         }
       },
       "locked": {
-        "noWorkspace": "共享字典包含在 Business 方案中。與所有人共享團隊的術語、產品名稱和縮寫。",
-        "upgradeAdmin": "共享字典包含在 Business 方案中。升級 {{workspace}}，讓每個人都使用相同的詞語。",
-        "upgradeMember": "共享字典包含在 Business 方案中。請管理員升級 {{workspace}}。",
-        "paused_one": "{{workspace}} 的 {{count}} 個共享詞語已暫停。升級到 Business 即可在聽寫中再次使用。",
-        "paused_other": "{{workspace}} 的 {{count}} 個共享詞語已暫停。升級到 Business 即可在聽寫中再次使用。",
+        "noWorkspace": "共享字典包含在 Business 方案中。",
+        "upgradeAdmin": "{{workspace}} 的共享字典包含在 Business 方案中。",
+        "upgradeMember": "共享字典包含在 Business 方案中。由 {{workspace}} 的管理員管理。",
+        "paused_one": "{{workspace}} 的 {{count}} 個共享詞語已暫停。",
+        "paused_other": "{{workspace}} 的 {{count}} 個共享詞語已暫停。",
         "workspaceTitle": "工作區中的所有人",
         "workspaceDescription": "適用於整個公司的詞語",
         "spaceTitle": "每個空間一個清單",
@@ -3977,8 +3985,8 @@
         "lockLabel": "包含在 Business 方案中",
         "ssoRequired": "{{workspace}} 要求使用公司 SSO。請登出後使用 SSO 重新登入，以使用其共享詞語。",
         "noAccess": "你已無法存取 {{workspace}} 的共享詞語。如有疑問，請聯絡管理員。",
-        "pausedMember_one": "{{workspace}} 的 {{count}} 個共享詞語已暫停。請管理員或擁有者升級到 Business，即可在聽寫中再次使用。",
-        "pausedMember_other": "{{workspace}} 的 {{count}} 個共享詞語已暫停。請管理員或擁有者升級到 Business，即可在聽寫中再次使用。"
+        "pausedMember_one": "{{workspace}} 的 {{count}} 個共享詞語已暫停。由管理員或擁有者管理。",
+        "pausedMember_other": "{{workspace}} 的 {{count}} 個共享詞語已暫停。由管理員或擁有者管理。"
       },
       "empty": {
         "body": "新增這個團隊使用的術語，或從你的個人清單中共享一些。{{list}} 中的所有人（{{count}}）都會收到。",

@@ -483,6 +483,25 @@ export async function upsertCloudSpaces(cloudSpaces: MySpace[]): Promise<number[
   return backfillIds;
 }
 
+// History backup keeps the transcript. Provider, model, and duration told the
+// API which engine ran and how long the user spoke; they are not part of the
+// synced note.
+function transcriptionSyncPayload(t: {
+  client_transcription_id?: string | null;
+  text?: string | null;
+  raw_text?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+}) {
+  return {
+    client_transcription_id: t.client_transcription_id ?? undefined,
+    text: t.text ?? "",
+    raw_text: t.raw_text,
+    status: t.status ?? undefined,
+    created_at: t.created_at ?? undefined,
+  };
+}
+
 export class SyncService {
   private syncing = false;
   private syncAllPending = false;
@@ -1337,16 +1356,7 @@ export class SyncService {
     // A failed entry stays on this device until a retry completes it.
     if (!t || t.cloud_id || t.status === "failed") return;
 
-    const cloud = await TranscriptionsService.create({
-      client_transcription_id: t.client_transcription_id,
-      text: t.text,
-      raw_text: t.raw_text,
-      provider: t.provider,
-      model: t.model,
-      audio_duration_ms: t.audio_duration_ms,
-      status: t.status,
-      created_at: t.created_at,
-    });
+    const cloud = await TranscriptionsService.create(transcriptionSyncPayload(t));
     await window.electronAPI.markTranscriptionSynced?.(t.id, cloud.id);
   }
 
@@ -2867,16 +2877,7 @@ export class SyncService {
       const chunk = pending.slice(i, i + TRANSCRIPTION_BATCH_SIZE);
       try {
         const { created } = await TranscriptionsService.batchCreate(
-          chunk.map((t) => ({
-            client_transcription_id: t.client_transcription_id,
-            text: t.text,
-            raw_text: t.raw_text,
-            provider: t.provider,
-            model: t.model,
-            audio_duration_ms: t.audio_duration_ms,
-            status: t.status,
-            created_at: t.created_at,
-          }))
+          chunk.map((t) => transcriptionSyncPayload(t))
         );
         for (const cloudT of created) {
           const local = chunk.find(

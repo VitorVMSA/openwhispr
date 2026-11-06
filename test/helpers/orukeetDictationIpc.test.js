@@ -351,25 +351,34 @@ test("closing the owning window releases the managed socket and auth subscriptio
   assert.equal(event.sender.listenerCount("destroyed"), 0);
 });
 
-test("cloud cleanup forwards fallback telemetry to its combined log request", async () => {
+test("cloud cleanup keeps the transcript and drops usage fields", async () => {
   const requests = [];
   backendResponse = async (url, options) => {
     assert.equal(url, "https://api.openwhispr.test/api/reason");
     requests.push(JSON.parse(options.body));
     return Response.json({ text: "clean transcript" });
   };
-  for (const reason of ["rate_limited", undefined]) {
-    const result = await handlers.get("cloud-reason")(event, "raw transcript", {
-      purpose: "cleanup",
-      sttProvider: "groq",
-      streamingFallbackReason: reason,
-    });
-    assert.equal(result.success, true);
-    assert.equal(requests.at(-1).streamingFallbackReason, reason);
-    assert.equal(requests.at(-1).sttProvider, "groq");
+  const result = await handlers.get("cloud-reason")(event, "raw transcript", {
+    purpose: "cleanup",
+    sttProvider: "groq",
+    streamingFallbackReason: "rate_limited",
+    sessionId: "should-not-leave",
+    clientType: "desktop",
+    appVersion: "9.9.9",
+  });
+  assert.equal(result.success, true);
+  assert.equal(requests[0].text, "raw transcript");
+  assert.equal(requests[0].purpose, "cleanup");
+  for (const key of [
+    "sttProvider",
+    "streamingFallbackReason",
+    "sessionId",
+    "clientType",
+    "appVersion",
+    "clientVersion",
+  ]) {
+    assert.equal(Object.hasOwn(requests[0], key), false, key);
   }
-  assert.equal(requests.length, 2);
-  assert.equal(Object.hasOwn(requests[1], "streamingFallbackReason"), false);
 });
 
 test("cloud reason sends shared words in sharedDictionary, and omits it when there are none", async () => {
@@ -423,7 +432,7 @@ const DETECTED = {
   sttDetectedLanguageStatus: "detected",
 };
 
-test("cloud cleanup forwards the detected language to its combined log request", async () => {
+test("cloud cleanup does not forward the detected language", async () => {
   const requests = [];
   backendResponse = async (url, options) => {
     requests.push(JSON.parse(options.body));
@@ -434,17 +443,14 @@ test("cloud cleanup forwards the detected language to its combined log request",
     sttProvider: "orukeet",
     ...DETECTED,
   });
-  await handlers.get("cloud-reason")(event, "raw", { purpose: "cleanup", sttProvider: "orukeet" });
-  assert.deepEqual(
-    Object.fromEntries(Object.keys(DETECTED).map((key) => [key, requests[0][key]])),
-    DETECTED
-  );
-  for (const key of Object.keys(DETECTED)) {
-    assert.equal(Object.hasOwn(requests[1], key), false, key);
+  assert.equal(requests[0].text, "raw");
+  assert.equal(requests[0].purpose, "cleanup");
+  for (const key of ["sttProvider", ...Object.keys(DETECTED)]) {
+    assert.equal(Object.hasOwn(requests[0], key), false, key);
   }
 });
 
-test("streaming usage forwards the detected language", async () => {
+test("streaming usage meters the transcript without usage fields", async () => {
   const requests = [];
   backendResponse = async (url, options) => {
     assert.match(url, /\/api\/streaming-usage$/);
@@ -457,23 +463,24 @@ test("streaming usage forwards the detected language", async () => {
       limitReached: false,
     });
   };
-  await handlers.get("cloud-streaming-usage")(event, "hello", 4, {
+  const result = await handlers.get("cloud-streaming-usage")(event, "hello", 4, {
     sttProvider: "orukeet",
+    clientTranscriptionId: "dictation-1",
+    sendLogs: true,
+    localDate: "2026-11-06",
+    analyticsWordCount: 1,
     ...DETECTED,
   });
-  await handlers.get("cloud-streaming-usage")(event, "hello", 4, {
-    sttProvider: "orukeet",
-    sttDetectedLanguageStatus: "unknown",
+  assert.equal(result.success, true);
+  assert.equal(result.wordsRemaining, 10);
+  assert.deepEqual(requests[0], {
+    text: "hello",
+    audioDurationSeconds: 4,
+    clientTranscriptionId: "dictation-1",
   });
-  assert.deepEqual(
-    Object.fromEntries(Object.keys(DETECTED).map((key) => [key, requests[0][key]])),
-    DETECTED
-  );
-  assert.equal(requests[1].sttDetectedLanguageStatus, "unknown");
-  assert.equal(Object.hasOwn(requests[1], "sttDetectedLanguage"), false);
 });
 
-test("the language fallback upload carries the fallback reason and detection, and no language", async () => {
+test("a cloud transcribe upload keeps the audio and drops usage fields", async () => {
   const bodies = [];
   backendResponse = async (url, options) => {
     assert.match(url, /\/api\/transcribe$/);
@@ -485,13 +492,25 @@ test("the language fallback upload carries the fallback reason and detection, an
     ...DETECTED,
   });
   assert.equal(result.success, true);
+  assert.equal(result.text, "日本語");
   const body = bodies[0];
-  assert.match(body, /name="streamingFallbackReason"\r\n\r\nlanguage_detected_unsupported\r\n/);
-  assert.match(body, /name="sttDetectedLanguage"\r\n\r\nja\r\n/);
-  assert.match(body, /name="sttDetectedLanguageConfidence"\r\n\r\n0\.97\r\n/);
-  assert.match(body, /name="sttDetectedLanguageAudioSeconds"\r\n\r\n6\r\n/);
-  assert.match(body, /name="sttDetectedLanguageStatus"\r\n\r\ndetected\r\n/);
-  assert.doesNotMatch(body, /name="language"/);
+  assert.match(body, /filename="audio\.webm"/);
+  assert.match(body, /name="source"\r\n\r\ndictation\r\n/);
+  assert.match(body, /name="clientTranscriptionId"/);
+  for (const name of [
+    "streamingFallbackReason",
+    "sttDetectedLanguage",
+    "sttDetectedLanguageConfidence",
+    "sttDetectedLanguageAudioSeconds",
+    "sttDetectedLanguageStatus",
+    "sessionId",
+    "clientType",
+    "appVersion",
+    "sendLogs",
+    "language",
+  ]) {
+    assert.doesNotMatch(body, new RegExp(`name="${name}"`), name);
+  }
 });
 
 test("warmups landing together mint one session and share its unused socket", async () => {
@@ -640,7 +659,7 @@ test("pipeline options reach minting through IPC warmup and changed options repl
   await handlers.get("dictation-realtime-stop")();
 });
 
-test("server telemetry survives streaming usage, fallback upload and cloud cleanup IPC", async () => {
+test("orukeet routing and cleanup details stay off streaming usage, upload and cloud cleanup", async () => {
   const metadata = {
     orukeetLanguageRouting: {
       version: 1,
@@ -667,16 +686,19 @@ test("server telemetry survives streaming usage, fallback upload and cloud clean
     streamingFallbackReason: "language_supported_score_low",
     ...metadata,
   });
-  for (const [, body] of bodies.slice(0, 2)) {
-    const parsed = JSON.parse(body);
-    assert.deepEqual(parsed.orukeetLanguageRouting, metadata.orukeetLanguageRouting);
-    assert.deepEqual(parsed.orukeetCleanup, metadata.orukeetCleanup);
+  const usage = JSON.parse(bodies[0][1]);
+  const reason = JSON.parse(bodies[1][1]);
+  assert.equal(usage.text, "raw");
+  assert.equal(usage.audioDurationSeconds, 6);
+  assert.equal(reason.text, "raw");
+  assert.equal(reason.purpose, "cleanup");
+  for (const parsed of [usage, reason]) {
+    assert.equal(Object.hasOwn(parsed, "orukeetLanguageRouting"), false);
+    assert.equal(Object.hasOwn(parsed, "orukeetCleanup"), false);
   }
   const multipart = Buffer.from(bodies[2][1]).toString("latin1");
-  assert.ok(multipart.includes(JSON.stringify(metadata.orukeetLanguageRouting)));
-  assert.ok(multipart.includes(JSON.stringify(metadata.orukeetCleanup)));
-  assert.match(multipart, /language_supported_score_low/);
-  assert.doesNotMatch(multipart, /\[object Object\]/);
+  assert.match(multipart, /filename="audio\.webm"/);
+  assert.doesNotMatch(multipart, /orukeetLanguageRouting|orukeetCleanup|language_supported_score_low/);
 });
 
 const nextTick = () => new Promise((resolve) => setImmediate(resolve));

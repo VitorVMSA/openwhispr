@@ -17,14 +17,11 @@ test("the explicit Insights prompt is the one path that claims local counters", 
   assert.ok(read("src/hooks/useInsightsSyncOptIn.tsx").includes("claimAnonymousAnalyticsEvents"));
 });
 
-test("the Insights view uses the shared predicate for the claim offer", () => {
+test("the Insights view does not upload counters or fetch the cloud summary", () => {
   const view = read("src/components/InsightsView.tsx");
-  assert.ok(view.includes("canOfferAnalyticsClaim({"));
-  assert.equal(
-    view.includes("!insightsSyncEnabled &&"),
-    false,
-    "sync left on across sign-out must not strand later unattributed counters"
-  );
+  assert.equal(view.includes("getAccountAnalyticsSummary"), false);
+  assert.equal(view.includes("syncAnalyticsNow"), false);
+  assert.equal(view.includes("canOfferAnalyticsClaim({"), false);
 });
 
 test("Insights Sync and leaderboard participation have separate owners", () => {
@@ -43,8 +40,9 @@ test("Insights Sync and leaderboard participation have separate owners", () => {
   assert.ok(participationHook.includes("store.leave(context)"));
   assert.equal(participationHook.includes("setInsightsSyncEnabled"), false);
 
-  assert.ok(settings.includes("if (enabled) void enableInsightsSync()"));
-  assert.ok(settings.includes("disableInsightsSync()"));
+  assert.equal(settings.includes('t("settingsPage.privacy.insightsSync")'), false);
+  assert.equal(settings.includes('t("settingsPage.privacy.usageAnalytics")'), false);
+  assert.equal(settings.includes("disableInsightsSync()"), false);
   assert.ok(settings.includes("useLeaderboardParticipation()"));
   assert.ok(settings.includes("join: joinLeaderboard"));
   assert.ok(settings.includes("leave: leaveLeaderboard"));

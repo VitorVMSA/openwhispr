@@ -838,8 +838,12 @@ test("upload: corti and xai still get their language", async () => {
   assert.equal(xai.success, true);
   assert.match(fetches[0].url, /api\.x\.ai/);
   const xaiBody = fetches[0].init.body.toString();
+  const modelAt = xaiBody.indexOf('name="model"');
+  const fileAt = xaiBody.indexOf('name="file"');
+  assert.ok(modelAt >= 0 && fileAt > modelAt, "model must precede the file");
+  assert.match(xaiBody, /name="model"[\s\S]*?grok-voice-transcribe-2\.0/);
   assert.match(xaiBody, /name="language"[\s\S]*?de/);
-  assert.doesNotMatch(xaiBody, /name="model"/);
+  assert.match(xaiBody, /name="format"[\s\S]*?true/);
 
   const corti = await invokeUpload({
     apiKey: "",
