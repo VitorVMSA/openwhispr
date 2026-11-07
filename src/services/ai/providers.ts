@@ -45,8 +45,7 @@ export async function getAIModel(
       // default would only send reasoning effort for OpenAI model ids.
       return createOpenAI({ apiKey, baseURL: API_ENDPOINTS.XAI_BASE }).chat(model);
     case "anthropic":
-      // The assistant panel runs in the pill window, which keeps Chromium's
-      // default webSecurity (the deleted agent overlay disabled it). Anthropic
+      // The agent window keeps Chromium's default webSecurity. Anthropic
       // only answers browser-origin requests that opt in with this header;
       // the dictation path avoids the issue by going through IPC.
       return createAnthropic({

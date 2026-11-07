@@ -355,34 +355,10 @@
           "features": {
             "device": "Funziona sul tuo dispositivo",
             "offline": "Funziona offline dopo la configurazione",
-            "models": "Scegli i modelli per dettatura e assistente",
+            "setup": "Configurato per questo computer",
             "free": "Gratis per sempre"
           }
         },
-        "warnings": {
-          "byok": {
-            "title": "Il tuo provider gestisce i tuoi dati",
-            "description": "Aggiungerai le credenziali per provider separati di dettatura e Assistant. Si applicano i prezzi e i criteri di conservazione del provider.",
-            "continue": "Configura il provider API",
-            "steps": {
-              "1": "Scegli i provider per dettatura e Assistant",
-              "2": "Aggiungi le credenziali con l’archiviazione sicura",
-              "3": "Prova ogni connessione prima dell’attivazione"
-            }
-          },
-          "local": {
-            "title": "La configurazione locale richiede qualche passaggio in più",
-            "description": "L’elaborazione locale mantiene la tua voce su questo dispositivo, ma richiede una configurazione iniziale e almeno {{minimumSpace}} GB di spazio libero.",
-            "continue": "Configura in locale",
-            "steps": {
-              "1": "Scegli un motore di trascrizione",
-              "2": "Configura o scarica un modello, circa {{modelSize}}",
-              "3": "Attendi installazione e attivazione"
-            }
-          }
-        },
-        "useCloud": "Usa Cloud invece",
-        "continueSetup": "Continua la configurazione",
         "showMore": "Mostra altre opzioni",
         "moreOptions": {
           "title": "Scegli la tua configurazione API",
@@ -437,23 +413,80 @@
         }
       },
       "local": {
-        "title": "Configura i modelli locali",
-        "description": "Scegli i modelli da eseguire sul tuo dispositivo.",
-        "descriptionLineOne": "Scegli i modelli da eseguire",
-        "descriptionLineTwo": "sul tuo dispositivo.",
-        "providerLabel": "Provider",
-        "cohereLanguageLabel": "Lingua di dettatura",
-        "cohereLanguageHint": "Cohere non rileva la lingua che parli, quindi scegli quella in cui detterai.",
-        "cohereLanguagePlaceholder": "Scegli una lingua",
-        "download": "Scarica",
         "downloadingShort": "Download",
-        "selected": "Selezionato",
-        "use": "Usa",
         "downloadInProgress": "Download in corso",
         "cancelDownload": "Annulla il download di {{model}}",
         "downloads": "Download dei modelli",
         "downloading": "Download in corso… {{progress}}%",
+        "verifying": "Verifica",
         "installing": "Installazione"
+      },
+      "localSetup": {
+        "title": "Ti consigliamo queste impostazioni",
+        "subtitle": "Scelte per il tuo {{computer}} e per {{language}}. Questi modelli funzionano su questo dispositivo.",
+        "subtitleOrganizationText": "Scelte per il tuo {{computer}} e per {{language}}. La dettatura funziona su questo dispositivo; chat e note con IA usano il servizio scelto dalla tua organizzazione.",
+        "computer": {
+          "chip": "Chip",
+          "processor": "Processore",
+          "memory": "Memoria",
+          "graphics": "Grafica",
+          "builtIn": "Integrata nel chip",
+          "memoryValue": "{{gb}} GB",
+          "mac": "Mac",
+          "windowsLaptop": "Portatile Windows",
+          "windowsDesktop": "Desktop Windows",
+          "linuxLaptop": "Portatile Linux",
+          "linuxDesktop": "Desktop Linux"
+        },
+        "rows": {
+          "dictation": "Dettatura",
+          "cleanup": "Correzione",
+          "assistant": "Assistente"
+        },
+        "description": {
+          "dictation": "Trasforma la tua voce in testo in qualsiasi app",
+          "cleanup": "Rimuove le parole superflue e corregge la grammatica",
+          "assistant": "Risponde alle domande ed esegue le tue richieste"
+        },
+        "badge": {
+          "optional": "Facoltativo",
+          "cloud": "Cloud consigliato"
+        },
+        "line": {
+          "requiredByOrganization": "Richiesto dalla tua organizzazione",
+          "organizationModelsUnrunnable": "Nessuno dei modelli approvati dalla tua organizzazione funziona su questo computer",
+          "offToFit": "Disattivato per rientrare nello spazio libero di questo computer",
+          "failed": "Download non riuscito. Controlla la connessione e riprova"
+        },
+        "unavailable": {
+          "notEnoughMemory": "Memoria insufficiente",
+          "exceedsMemory": "Supera i limiti di memoria di questo computer",
+          "memoryUnread": "Impossibile verificare la memoria",
+          "organization": "Non disponibile su questo computer",
+          "memoryMac": "{{model}} richiede {{needed}} GB di memoria, questo Mac ne ha {{have}} GB",
+          "memoryComputer": "{{model}} richiede {{needed}} GB di memoria, questo computer ne ha {{have}} GB",
+          "memoryUnreadLine": "{{model}} richiede {{needed}} GB di memoria. Se questo computer ne ha così tanta, attivalo più tardi nelle Impostazioni"
+        },
+        "button": {
+          "download": "Scarica i modelli",
+          "downloading": "Download in corso",
+          "proceed": "Procedi",
+          "noSpace": "Spazio libero insufficiente"
+        },
+        "retry": "Riprova",
+        "retryRow": "Riprova {{row}}",
+        "downloaded": "Scaricato",
+        "foot": {
+          "default": "Puoi modificare tutto questo più tardi nelle Impostazioni.",
+          "dictationFailed": "La dettatura deve essere scaricata prima di continuare. Riprova qui sopra, oppure torna indietro e scegli un'altra configurazione.",
+          "dictationUnavailable": "La dettatura non può funzionare su questo computer con i modelli approvati dalla tua organizzazione. Torna indietro e scegli un'altra configurazione.",
+          "finishesInBackground": "Il resto continua a scaricarsi dopo che prosegui e si attiva quando è pronto.",
+          "failedStaysOff": "Ciò che non è stato scaricato resta disattivato. Puoi aggiungerlo più tardi nelle Impostazioni.",
+          "needsMac": "Servono {{needed}} GB e questo Mac ha {{free}} GB liberi.",
+          "needsComputer": "Servono {{needed}} GB e questo computer ha {{free}} GB liberi.",
+          "noSpaceMac": "La dettatura richiede {{needed}} GB liberi e questo Mac ne ha {{free}} GB. Libera spazio per continuare.",
+          "noSpaceComputer": "La dettatura richiede {{needed}} GB liberi e questo computer ne ha {{free}} GB. Libera spazio per continuare."
+        }
       }
     },
     "steps": {
@@ -881,6 +914,11 @@
       }
     },
     "modelRetiredTitle": "Modello non più disponibile",
+    "modelRetiredByProvider": "{{provider}} ha ritirato {{from}}. Passato a {{to}}.",
+    "modelUnavailableSwitched": "{{from}} non è più disponibile su {{provider}}. Passaggio a {{to}}.",
+    "localModelRetired": "{{from}} non è più disponibile, quindi siamo passati a {{to}}. Se non è ancora stato scaricato, scaricalo nelle Impostazioni.",
+    "localModelRetiredChooseAnother": "{{from}} non è più disponibile. Scegli un altro modello locale nelle Impostazioni.",
+    "localModelRetiredKept": "{{from}} è stato ritirato. Continua a funzionare perché è già scaricato, ma non può essere scaricato di nuovo. Scegli un altro modello locale nelle Impostazioni.",
     "groq": {
       "modelRetired": "Groq ha ritirato {{from}}. Passato a {{to}}."
     },
@@ -1075,6 +1113,7 @@
         "tlsError": "Errore di certificato — la tua rete potrebbe usare l'ispezione SSL che blocca i download. Prova a scaricare da un'altra rete.",
         "unknown": "Errore sconosciuto"
       },
+      "verifying": "Verifica di {{model}}",
       "downloadFailed": {
         "title": "Download non riuscito"
       },
@@ -1875,7 +1914,7 @@
       },
       "examplesTitle": "Esempi",
       "helper": "Scegli qualcosa di breve e naturale da dire ad alta voce",
-      "howItWorksDescription": "Quando dici \"Ehi {{agentName}}\" seguito da un'istruzione, il testo evidenziato viene sostituito in sicurezza con il risultato. Con l'incolla automatico attivo, la risposta viene incollata al cursore di un campo modificabile attivo; altrimenti si apre nel pannello flottante dell'assistente.",
+      "howItWorksDescription": "Quando dici \"Ehi {{agentName}}\" seguito da un'istruzione, il testo evidenziato viene sostituito in sicurezza con il risultato. Le altre richieste si aprono nella finestra dell'assistente.",
       "howItWorksTitle": "Come funziona",
       "instructionMode": "Istruzione",
       "placeholder": "es. Jarvis, Nova, Atlas...",
@@ -1950,6 +1989,14 @@
       "dataManagementTitle": "Gestione dati",
       "modelCache": "Cache dei modelli",
       "open": "Apri",
+      "retiredModels": {
+        "label": "Modelli ritirati",
+        "description": "Questi modelli non sono più offerti ma sono ancora sul disco: {{models}}.",
+        "remove": "Rimuovi",
+        "confirmTitle": "Rimuovere i modelli ritirati?",
+        "confirmDescription": "Questa operazione elimina i file dei modelli che il catalogo non offre più. Gli altri modelli scaricati restano.",
+        "failedDescription": "Non è stato possibile rimuovere alcuni file. Un modello potrebbe essere ancora in uso; riavvia l'app e riprova."
+      },
       "removeModels": {
         "confirmText": "Elimina modelli",
         "description": "Questa operazione elimina tutti i modelli Whisper memorizzati nella cache locale ({{path}}) e libera spazio su disco. Puoi scaricarli di nuovo dal selettore modelli.",
@@ -2039,7 +2086,7 @@
       },
       "voiceAgentHotkey": {
         "title": "Scorciatoia dell'assistente vocale",
-        "description": "Pronuncia un comando e l'assistente usa le tue note, il calendario e gli strumenti web. La risposta viene incollata a un cursore modificabile attivo, sostituisce il testo selezionato o si apre nel pannello flottante."
+        "description": "Pronuncia una richiesta e l'assistente risponde nella sua finestra, usando le tue note, il calendario e gli strumenti web. Il testo che evidenzi prima lo accompagna come contesto."
       },
       "microphone": {
         "description": "Seleziona il dispositivo di ingresso da usare per la dettatura",
@@ -2258,6 +2305,8 @@
       "leaderboardRequiresHistory": "Attiva la conservazione dei dati prima di partecipare alle classifiche.",
       "usageAnalytics": "Analisi dell'utilizzo",
       "usageAnalyticsDescription": "Aiutaci a migliorare OpenWhispr condividendo metriche di prestazione anonime. Non inviamo mai il contenuto delle trascrizioni, solo dati su tempi ed errori.",
+      "modelListUpdates": "Aggiornamenti dell'elenco modelli",
+      "modelListUpdatesDescription": "Controlla ogni 15 minuti l'elenco pubblico dei modelli di OpenWhispr su GitHub per trovare modelli nuovi e ritirati. Le modifiche hanno pieno effetto dopo il riavvio.",
       "dataRetention": "Conservazione dei dati",
       "dataRetentionDescription": "Salva trascrizioni e audio localmente nella cronologia. Se disattivato, le trascrizioni vengono incollate ma non salvate.",
       "transcriptRetention": "Conservazione delle trascrizioni",
@@ -4194,6 +4243,10 @@
     "expand": "Espandi barra laterale"
   },
   "chat": {
+    "answering": "Risposta in corso…",
+    "conversationCreateFailed": "Impossibile avviare la conversazione. La tua domanda è di nuovo in Nuova chat.",
+    "messageSaveFailed": "Impossibile salvare questo messaggio. Riprova.",
+    "conversationLoadFailed": "Impossibile caricare questa conversazione. Riprova.",
     "newChat": "Nuova chat",
     "search": "Cerca conversazioni...",
     "archived": "Archiviate",
@@ -4227,7 +4280,15 @@
       "todos": "Elenca le mie attività recenti",
       "meeting": "Preparami per la prossima riunione",
       "sharedNotes": "Evidenzia le mie note condivise"
-    }
+    },
+    "fork": "Dirama",
+    "forked": "Chat diramata",
+    "forkedFrom": "Diramata da «{{title}}»",
+    "forkFailed": "Impossibile diramare questa chat",
+    "sendNotStarted": "Questa chat è occupata. Il messaggio non è stato inviato. Riprova al termine della richiesta in corso.",
+    "openFailed": "Questa chat non è più disponibile.",
+    "localModelDownloading": "Il modello dell’assistente è ancora in download. La chat si attiverà quando sarà pronto.",
+    "localModelMissing": "Scegli un modello per Chat nelle Impostazioni per chattare su questo dispositivo."
   },
   "support": {
     "documentation": "Documentazione",
@@ -4310,7 +4371,6 @@
       "hotkeyToSpeak": "{{hotkey}} per parlare",
       "recording": "Registrazione...",
       "processing": "Elaborazione...",
-      "clickToSpeak": "Clicca per parlare",
       "waitingForMicrophone": "In attesa del microfono…"
     },
     "buttons": {
@@ -4322,7 +4382,6 @@
       "startListening": "Inizia ad ascoltare",
       "hideForNow": "Nascondi per ora",
       "askAssistant": "Chiedi all'assistente",
-      "busyRecording": "Prima termina la registrazione in corso",
       "startMeetingRecording": "Avvia registrazione meeting"
     }
   },
@@ -4425,30 +4484,155 @@
       "update_skillName": "Aggiorna skill",
       "search_openwhispr_helpStatus": "Ricerca nella guida di OpenWhispr...",
       "read_openwhispr_helpStatus": "Lettura della guida di OpenWhispr...",
-      "get_openwhispr_contextStatus": "Lettura delle impostazioni di OpenWhispr..."
+      "get_openwhispr_contextStatus": "Lettura delle impostazioni di OpenWhispr...",
+      "ask_userName": "Domanda",
+      "ask_userStatus": "Ti sto chiedendo...",
+      "request_connectionName": "Connessione",
+      "request_connectionStatus": "Richiesta di connessione...",
+      "request_accessName": "Accesso",
+      "request_accessStatus": "Richiesta di accesso...",
+      "look_at_screenName": "Guarda lo schermo",
+      "look_at_screenStatus": "Lettura dello schermo...",
+      "look_at_screenSuccess": "Schermata letta.",
+      "look_at_screenFailed": "Non è stato possibile leggere la schermata.",
+      "request_api_keyName": "Chiave API",
+      "request_api_keyStatus": "Richiesta di una chiave API...",
+      "open_settingsName": "Impostazioni",
+      "open_settingsStatus": "Ti indirizzo alle impostazioni..."
+    },
+    "turn": {
+      "reasoning": "Ragionamento",
+      "stopped": "Interrotto",
+      "stepLimit": "In pausa dopo il numero massimo di passaggi.",
+      "continue": "Continua",
+      "continueMessage": "Continua",
+      "failed": "Questa risposta non è riuscita.",
+      "unbackedClaim": "Non fatto: non è stato eseguito nulla di ciò che questa risposta dice di aver fatto."
+    },
+    "interactions": {
+      "notNow": "Non ora",
+      "cancel": "Annulla",
+      "questions": {
+        "recommended": "{{label}} (Consigliato)",
+        "submit": "Invia",
+        "placeholder": "Scrivi la tua risposta…",
+        "previous": "Domanda precedente",
+        "next": "Domanda successiva",
+        "position": "{{current}}/{{total}}",
+        "continue": "Continua",
+        "typedAnswer": "La tua risposta: {{answer}}"
+      },
+      "connection": {
+        "title": "Connetti {{name}}",
+        "connect": "Connetti {{name}}",
+        "connecting": "Completa la connessione nel browser…",
+        "failed": "Impossibile connettersi. Riprova.",
+        "permissionDenied": "L'accesso al calendario è stato negato. Consentilo nelle Impostazioni di Sistema e riprova.",
+        "calendarTitle": "Connetti un calendario",
+        "yes": "Sì",
+        "reasons": {
+          "gmail": "Posso inviare l'email dal tuo Gmail.",
+          "slack": "Posso pubblicare il messaggio su Slack per te.",
+          "linear": "Posso trovare e creare issue di Linear per te.",
+          "github": "Posso trovare e creare issue di GitHub per te.",
+          "calendar": "Posso controllare la tua disponibilità e proporre degli orari."
+        }
+      },
+      "access": {
+        "screen": "Consentire l'accesso allo schermo?",
+        "allow": "Consenti",
+        "capturing": "Acquisizione…"
+      },
+      "apiKey": {
+        "title": "Aggiungi la tua chiave API di {{provider}}",
+        "placeholder": "Incolla o scrivi qui",
+        "save": "Salva",
+        "label": "Chiave API di {{provider}}",
+        "saved": "Chiave di {{provider}} salvata"
+      },
+      "settings": {
+        "done": "Fatto",
+        "technicalDetails": "Dettagli tecnici",
+        "checking": "Verifica in corso…"
+      },
+      "status": {
+        "answered": "Risposto",
+        "connected": "{{name}} connesso",
+        "granted": "Schermo condiviso",
+        "declined": "Non consentito",
+        "saved": "Chiave API salvata",
+        "done": "Di ritorno dalle impostazioni",
+        "cancelled": "Ignorato",
+        "notAnswered": "Senza risposta",
+        "invalid": "Impossibile mostrare la domanda"
+      },
+      "followUp": {
+        "connected": "Ho connesso {{name}}.",
+        "granted": "Ho consentito l'accesso al mio schermo.",
+        "saved": "Ho salvato la mia chiave API di {{provider}}.",
+        "done": "Ho finito nelle impostazioni."
+      }
     }
   },
-  "assistant": {
-    "panel": {
-      "selectionHint": "Seleziona il testo da modificare con",
-      "selectedContext": "Testo selezionato aggiunto",
-      "removeSelectedContext": "Rimuovi testo selezionato",
-      "newConversation": "Nuova conversazione",
-      "copyToClipboard": "Copia negli appunti",
-      "suggestions": {
-        "summarizeNotes": "Riassumi le mie note recenti",
-        "calendar": "Cosa c’è nel mio calendario?",
-        "draft": "Aiutami a scrivere qualcosa"
-      }
+  "agentWindow": {
+    "title": "Assistente",
+    "actions": {
+      "expand": "Espandi",
+      "collapse": "Riduci",
+      "speak": "Parla",
+      "type": "Scrivi",
+      "stop": "Interrompi",
+      "close": "Chiudi",
+      "regenerate": "Rigenera",
+      "readAloud": "Leggi ad alta voce",
+      "stopReading": "Interrompi la lettura"
     },
-    "toolActivity": {
-      "verbs": {
-        "invoking": "Invocazione",
-        "calling": "Chiamata",
-        "using": "Utilizzo"
-      },
-      "toolFallback": "Strumento"
-    }
+    "notices": {
+      "nothingHeard": "Non ho sentito nulla",
+      "transcriptionFailed": "Impossibile trascrivere",
+      "micUnavailable": "Microfono non disponibile",
+      "regenerateFailed": "Impossibile rigenerare la risposta",
+      "dictationActive": "La dettatura sta usando il microfono"
+    },
+    "composer": {
+      "placeholder": "Detta o scrivi la tua domanda…",
+      "followUpPlaceholder": "Fai una domanda di approfondimento…",
+      "answerPlaceholder": "Rispondi qui…",
+      "cardPlaceholder": "Rispondi nella scheda qui sopra…"
+    },
+    "empty": {
+      "title": "Come posso aiutarti?",
+      "description": "Scrivi la tua richiesta qui sotto."
+    },
+    "selectedContext": {
+      "title": "Contesto selezionato",
+      "remove": "Rimuovi il contesto selezionato",
+      "fromAnswer": "Dalla risposta: «{{text}}»",
+      "fromOtherApp": "Da un'altra app: «{{text}}»"
+    },
+    "selectionHint": "Seleziona del testo per approfondire o diramare",
+    "selectionToolbar": "Testo selezionato",
+    "followUp": "Approfondisci",
+    "forkFromHere": "Dirama da qui",
+    "chats": {
+      "title": "Chat",
+      "switch": "Cambia chat",
+      "new": "Nuova chat",
+      "empty": "Ancora nessuna chat",
+      "untitled": "Chat senza titolo",
+      "fork": "Diramata"
+    },
+    "progress": {
+      "callingTools_one": "Chiamata di {{count}} strumento…",
+      "callingTools_other": "Chiamata di {{count}} strumenti…",
+      "checkingAnswers": "Controllo delle risposte…",
+      "reasoning": "Ragionamento…",
+      "reasonedFor": "Ha ragionato per {{duration}}",
+      "workedFor": "Ha lavorato per {{duration}}",
+      "steps_one": "{{count}} passaggio",
+      "steps_other": "{{count}} passaggi"
+    },
+    "waitingForAnswer": "In attesa di risposta"
   },
   "integrations": {
     "title": "Integrazioni",
@@ -4571,7 +4755,6 @@
     "approval": {
       "headers": {
         "default": "Invia a {{destination}}",
-        "slackPost": "Pubblica su {{destination}}",
         "email": "Email a {{destination}}",
         "issue": "Crea issue in {{destination}}",
         "comment": "Commenta {{destination}}"
@@ -4579,8 +4762,6 @@
       "identity": "Come {{account}}",
       "identityWithWorkspace": "Come {{account}} in {{workspace}}",
       "send": "Invia",
-      "edit": "Modifica",
-      "doneEditing": "Modifica completata",
       "cancel": "Annulla",
       "titleLabel": "Titolo",
       "bodyLabel": "Messaggio",
@@ -4606,6 +4787,10 @@
         "credential_save_failed": "Impossibile salvare l'accesso a Slack su questo computer. Non è stato inviato nulla. Riprova.",
         "dm_failed": "Impossibile aprire il messaggio diretto a {{destination}}. Non è stato inviato nulla.",
         "restricted": "{{destination}} è di sola lettura o limitato per te.",
+        "thread_mismatch": "Quel thread è in una conversazione diversa da {{destination}}. Non è stato inviato nulla.",
+        "invalid_thread": "Non è un link a un messaggio di Slack. Non è stato inviato nulla.",
+        "thread_closed": "Slack non consente risposte in quel thread. Non è stato inviato nulla.",
+        "thread_only": "{{destination}} accetta solo risposte nei thread. Non è stato inviato nulla.",
         "generic": "Qualcosa è andato storto. Non è stato inviato nulla.",
         "github": {
           "reconnect_needed": "GitHub deve essere ricollegato nelle Impostazioni.",
@@ -4666,7 +4851,6 @@
         }
       },
       "email": {
-        "from": "Da {{account}}",
         "toLabel": "A",
         "ccLabel": "Cc",
         "subjectLabel": "Oggetto",
@@ -4679,7 +4863,8 @@
         "tooManyRecipients": "Un'email può andare al massimo a {{max}} indirizzi, tra A e Cc.",
         "subjectTooLong": "L'oggetto può contenere al massimo {{max}} caratteri.",
         "bodyTooLong": "Il messaggio è troppo lungo per Gmail. Accorcialo per inviarlo.",
-        "unknown": "Impossibile confermare l'invio. Controlla la cartella Posta inviata."
+        "unknown": "Impossibile confermare l'invio. Controlla la cartella Posta inviata.",
+        "fromLabel": "Da"
       },
       "github": {
         "notes": {
@@ -4723,7 +4908,22 @@
         "notes": {
           "targetTitle": "Su «{{title}}»"
         }
-      }
+      },
+      "sentEarlier": "Hai già tentato questa operazione in questa chat. Verifica se è riuscita prima di inviare di nuovo.",
+      "slack": {
+        "channelLabel": "Canale",
+        "asLabel": "Come",
+        "destination": "{{workspace}} · {{destination}}",
+        "notes": {
+          "replyInThread": "Risposta nel thread iniziato il {{started, datetime(dateStyle: medium; timeStyle: short)}}"
+        },
+        "sentOutsideThread": "Inviato a {{destination}} come nuovo messaggio, non nel thread."
+      },
+      "sentLabel": "Inviato",
+      "identityChanged": "Ora verrà inviato come {{account}}. Premi Invia per inviarlo.",
+      "connectToSend": "Collega {{name}} per inviarlo",
+      "edit": "Modifica",
+      "doneEditing": "Modifica completata"
     },
     "policyOff": "La tua organizzazione ha disattivato i connettori.",
     "email": {
@@ -4772,7 +4972,8 @@
         "connectedBody": "Puoi chiudere questa scheda e tornare a OpenWhispr.",
         "failedTitle": "Slack non è stato connesso",
         "failedBody": "Torna a OpenWhispr per riprovare."
-      }
+      },
+      "pickDestination": "Quale «{{destination}}» intendevi?"
     },
     "github": {
       "title": "GitHub",
@@ -4948,6 +5149,10 @@
         "credential_save_failed": "Impossibile salvare l'accesso a Slack su questo computer. Non è stato inviato nulla.",
         "dm_failed": "Impossibile aprire il messaggio diretto. Non è stato inviato nulla.",
         "restricted": "Quel canale è di sola lettura o limitato.",
+        "thread_mismatch": "Quel thread è in un'altra conversazione. Non è stato inviato nulla.",
+        "invalid_thread": "Non è un link a un messaggio di Slack.",
+        "thread_closed": "Slack non consente risposte in quel thread.",
+        "thread_only": "Quel canale accetta solo risposte nei thread.",
         "generic": "Non ha funzionato.",
         "github": {
           "reconnect_needed": "GitHub deve essere ricollegato.",
@@ -5012,7 +5217,8 @@
       },
       "gmailDraftLimit": "Si possono preparare solo {{max}} email per richiesta.",
       "queryResults": "Risultati trovati: {{total}}",
-      "cardLimit": "Si possono preparare solo {{max}} schede per richiesta."
+      "cardLimit": "Si possono preparare solo {{max}} schede per richiesta.",
+      "alreadySent": "Già fatto per questa richiesta"
     },
     "beta": "Beta",
     "upsell": "I connettori sono inclusi nei piani a pagamento. Effettua l'upgrade per far lavorare l'assistente nei tuoi strumenti.",
