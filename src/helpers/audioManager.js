@@ -632,6 +632,14 @@ const SELECTION_EDIT_FAILURE_COPY = {
 const isUnknownLocalModelError = (error) =>
   /Invalid (model name|Parakeet model):/.test(error?.message ?? "");
 
+// A finished transcription with no text. The HTTP status already succeeded;
+// an error status never reaches here. The pill says it couldn't understand.
+function noSpeechDetectedError() {
+  return Object.assign(new Error("No speech detected in audio"), {
+    code: "NO_SPEECH_DETECTED",
+  });
+}
+
 class AudioManager {
   constructor() {
     this.mediaRecorder = null;
@@ -4025,6 +4033,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
           sendsDictionaryBias ? proxyEchoPrompt : null
         );
         if (!proxyText?.trim()) {
+          // The proxy only returns a body after an HTTP status that succeeded.
+          // A missing result is not that body.
+          if (result && typeof result === "object") throw noSpeechDetectedError();
           throw new Error(`No text transcribed - ${proxySpec.displayName} response was empty`);
         }
         // Keyterms carry up to MAX_SHARED_KEYTERMS shared words, not only the
@@ -4369,31 +4380,20 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
           "transcription"
         );
         return { success: true, text, rawText, source, timings };
-      } else {
-        // Log at info level so it shows without debug mode
+      } else if (result && typeof result === "object") {
         logger.info(
-          "Transcription returned empty - check audio input",
+          "Transcription response had no speech",
           {
             model,
             provider,
             endpoint,
             blobSize: audioBlob.size,
-            blobType: audioBlob.type,
-            mimeType,
-            extension,
             resultText: result.text,
-            resultKeys: Object.keys(result),
           },
           "transcription"
         );
-        logger.error(
-          "No text in transcription result",
-          {
-            result,
-            resultKeys: Object.keys(result),
-          },
-          "transcription"
-        );
+        throw noSpeechDetectedError();
+      } else {
         throw new Error(
           "No text transcribed - audio may be too short, silent, or in an unsupported format"
         );
@@ -4403,7 +4403,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       if (error.selectionEditFatal) {
         throw error;
       }
-      if (error.message === "No audio detected") {
+      if (error.message === "No audio detected" || error.code === "NO_SPEECH_DETECTED") {
         throw error;
       }
 
