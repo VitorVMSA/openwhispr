@@ -189,6 +189,7 @@ export type TranscriptionErrorCode =
   | "PROVIDER_NO_RESPONSE"
   | "PROVIDER_ERROR"
   | "CRASH_RECOVERY"
+  | "NO_SPEECH_DETECTED"
   | null;
 
 export type MeetingPromptVariant = "detected" | "starting" | "underway";
