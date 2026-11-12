@@ -148,3 +148,20 @@ test("auto-hide closes the native window before releasing DOM suppression", asyn
 
   assert.deepEqual(order, ["suppress", "bounds", "hide", "release"]);
 });
+
+test("a resize that never settles still reveals the pill", async () => {
+  const { createPillVisibilityHandoff } =
+    await import("../../src/utils/pillVisibilityHandoff.ts");
+  const visibility = [];
+  const handoff = createPillVisibilityHandoff({
+    onSuppressedChange: (suppressed) => visibility.push(suppressed),
+    waitForFrames: async () => {},
+    settleTimeoutMs: 20,
+  });
+
+  handoff.suppress();
+  const result = await handoff.releaseAfter(() => new Promise(() => {}));
+
+  assert.deepEqual(result, { released: true, superseded: false });
+  assert.deepEqual(visibility, [true, false]);
+});

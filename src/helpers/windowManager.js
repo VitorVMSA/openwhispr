@@ -31,6 +31,10 @@ const {
   shouldIgnoreDictationHotkey,
   isDictationRecording,
 } = require("./dictationLifecycle");
+const {
+  DICTATION_PROCESSING_STUCK_MS,
+  processingStuckAt,
+} = require("./dictationProcessingWatchdog");
 const { DEV_SERVER_PORT } = DevServerManager;
 const DRAG_MOVE_TOLERANCE_PX = 2;
 const ERR_ABORTED = -3;
@@ -124,6 +128,8 @@ class WindowManager {
     this._isDictatingToggle = false;
     this._dictationLifecycleState = DICTATION_LIFECYCLE.IDLE;
     this._dictationAttempt = null;
+    this._dictationProcessingSince = null;
+    this._dictationProcessingWatchdog = null;
     this._pendingMeetingNoteNavigation = null;
     this._pendingNoteNavigation = null;
     this._pendingSettingsSection = null;
@@ -1000,12 +1006,7 @@ class WindowManager {
     if (this.hotkeyManager.isInListeningMode()) {
       return;
     }
-    if (shouldIgnoreDictationHotkey(this._dictationLifecycleState)) {
-      debugLogger.debug("Ignoring dictation toggle while transcription is processing", {
-        channel,
-      });
-      return;
-    }
+    if (this._holdDictationInputForProcessing()) return;
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       const isStarting = !this._isDictatingToggle;
       // Capture the paste target and any selection on every toggle press,
@@ -1051,9 +1052,58 @@ class WindowManager {
 
     this._dictationLifecycleState = nextState;
     this._isDictatingToggle = isDictationRecording(nextState);
+    this._syncDictationProcessingWatchdog();
     this.syncUserRecording();
     this.onDictationStateChanged?.();
     return true;
+  }
+
+  _dictationProcessingIsStuck(now = Date.now()) {
+    return processingStuckAt(this._dictationProcessingSince, now);
+  }
+
+  _syncDictationProcessingWatchdog() {
+    clearTimeout(this._dictationProcessingWatchdog);
+    this._dictationProcessingWatchdog = null;
+    if (this._dictationLifecycleState !== DICTATION_LIFECYCLE.PROCESSING) {
+      this._dictationProcessingSince = null;
+      return;
+    }
+    this._dictationProcessingSince = Date.now();
+    this._dictationProcessingWatchdog = setTimeout(() => {
+      this._dictationProcessingWatchdog = null;
+      this._releaseStuckDictation("watchdog");
+    }, DICTATION_PROCESSING_STUCK_MS);
+    this._dictationProcessingWatchdog.unref?.();
+  }
+
+  // Processing ignores new dictation. Past the ceiling the in-flight request is
+  // treated as stuck: cancel it, bring the pill back, and let this press start.
+  _holdDictationInputForProcessing() {
+    if (!shouldIgnoreDictationHotkey(this._dictationLifecycleState)) return false;
+    if (this._dictationProcessingIsStuck()) {
+      this._releaseStuckDictation("hotkey");
+      return false;
+    }
+    debugLogger.debug("Ignoring dictation toggle while transcription is processing");
+    this._revealDictationPanel();
+    return true;
+  }
+
+  _revealDictationPanel() {
+    const win = this.mainWindow;
+    if (!win || win.isDestroyed()) return;
+    this.showDictationPanel({ reposition: !win.isVisible() });
+  }
+
+  _releaseStuckDictation(reason) {
+    if (!shouldIgnoreDictationHotkey(this._dictationLifecycleState)) return;
+    debugLogger.warn("Releasing stuck dictation processing", { reason });
+    this.setDictationLifecycleState(DICTATION_LIFECYCLE.IDLE);
+    const win = this.mainWindow;
+    if (!win || win.isDestroyed()) return;
+    win.webContents.send("cancel-hotkey-pressed");
+    this.showDictationPanel({ reposition: true });
   }
 
   // The tray's listen item is a toggle over this state, like the pill's.
@@ -1117,9 +1167,7 @@ class WindowManager {
     if (this.hotkeyManager.isInListeningMode()) {
       return;
     }
-    if (shouldIgnoreDictationHotkey(this._dictationLifecycleState)) {
-      return;
-    }
+    if (this._holdDictationInputForProcessing()) return;
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       const targetPidPromise = this.textEditMonitor?.captureTargetPid?.();
       void this.selectionManager?.captureTarget?.();
@@ -1145,9 +1193,7 @@ class WindowManager {
     if (this.hotkeyManager.isInListeningMode()) {
       return;
     }
-    if (shouldIgnoreDictationHotkey(this._dictationLifecycleState)) {
-      return;
-    }
+    if (this._holdDictationInputForProcessing()) return;
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send("prepare-dictation");
     }

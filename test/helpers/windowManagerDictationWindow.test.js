@@ -564,3 +564,75 @@ test("share screen context does not exclude the floating pill from capture", () 
   manager._updateMainContentProtection();
   assert.deepEqual(calls, [false]);
 });
+
+function visibleDictationWindow(sent) {
+  let visible = false;
+  return {
+    isDestroyed: () => false,
+    isMinimized: () => false,
+    isVisible: () => visible,
+    restore() {},
+    show() {
+      visible = true;
+      sent.push("show");
+    },
+    showInactive() {
+      visible = true;
+      sent.push("show");
+    },
+    webContents: { send: (channel) => sent.push(channel) },
+  };
+}
+
+function beginProcessing(manager) {
+  assert.equal(manager.setDictationLifecycleState("preparing", "attempt"), true);
+  assert.equal(manager.setDictationLifecycleState("processing", "attempt"), true);
+}
+
+test("a hotkey during processing shows the pill and does not start another recording", () => {
+  const sent = [];
+  const manager = normalWindowManager();
+  manager.mainWindow = visibleDictationWindow(sent);
+  manager._repositionToActiveDisplay = () => Promise.resolve();
+  beginProcessing(manager);
+  sent.length = 0;
+
+  manager.sendStartDictation();
+
+  assert.deepEqual(sent, ["show"]);
+  assert.equal(manager._dictationLifecycleState, "processing");
+  manager.setDictationLifecycleState("idle", "attempt");
+});
+
+test("a processing lock past the ceiling cancels it and accepts the hotkey", () => {
+  const { DICTATION_PROCESSING_STUCK_MS } = require("../../src/helpers/dictationProcessingWatchdog");
+  const sent = [];
+  const manager = normalWindowManager();
+  manager.mainWindow = visibleDictationWindow(sent);
+  manager._repositionToActiveDisplay = () => Promise.resolve();
+  beginProcessing(manager);
+  manager._dictationProcessingSince = Date.now() - DICTATION_PROCESSING_STUCK_MS;
+  sent.length = 0;
+
+  manager.sendStartDictation();
+
+  assert.equal(manager._dictationLifecycleState, "idle");
+  assert.deepEqual(sent.slice(0, 2), ["cancel-hotkey-pressed", "show"]);
+  assert.ok(sent.includes("start-dictation"));
+});
+
+test("the processing ceiling releases the pill without a further hotkey", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { DICTATION_PROCESSING_STUCK_MS } = require("../../src/helpers/dictationProcessingWatchdog");
+  const sent = [];
+  const manager = normalWindowManager();
+  manager.mainWindow = visibleDictationWindow(sent);
+  manager._repositionToActiveDisplay = () => Promise.resolve();
+  beginProcessing(manager);
+  sent.length = 0;
+
+  t.mock.timers.tick(DICTATION_PROCESSING_STUCK_MS);
+
+  assert.equal(manager._dictationLifecycleState, "idle");
+  assert.deepEqual(sent, ["cancel-hotkey-pressed", "show"]);
+});
