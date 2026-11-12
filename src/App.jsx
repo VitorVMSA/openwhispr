@@ -246,17 +246,18 @@ export default function App() {
   // a menu opening over the compact pill resolves to EXPANDED geometry.
   const windowFitsCompactPill = isRecording || voiceActivity.compactPill;
 
-  const { dictationErrorPillHandoffActive, panelReturnResizeActive } = useMainWindowSizeOwner({
-    requestMainWindowSize,
-    dictationErrorActionCount,
-    toastCount,
-    isCommandMenuOpen,
-    isCompactPill: windowFitsCompactPill,
-    isDictationActive: isRecording || isVisuallyProcessing,
-    liveTranscriptOpen: liveTranscript.open,
-    liveTranscriptMounted: liveTranscript.mounted,
-    liveTranscriptOpenRef: liveTranscript.openRef,
-  });
+  const { dictationErrorPillHandoffActive, panelReturnResizeActive, revealCompactPill } =
+    useMainWindowSizeOwner({
+      requestMainWindowSize,
+      dictationErrorActionCount,
+      toastCount,
+      isCommandMenuOpen,
+      isCompactPill: windowFitsCompactPill,
+      isDictationActive: isRecording || isVisuallyProcessing,
+      liveTranscriptOpen: liveTranscript.open,
+      liveTranscriptMounted: liveTranscript.mounted,
+      liveTranscriptOpenRef: liveTranscript.openRef,
+    });
 
   useEffect(() => {
     if (isCommandMenuOpen || toastCount > 0 || liveTranscript.mounted) {
@@ -486,7 +487,8 @@ export default function App() {
     dictationErrorActionCount > 0 || dictationErrorPillHandoffActive;
   // The pill hides while a dictation error owns the window and through the
   // masked shrink back from the Live Transcript panel.
-  const pillVisuallySuppressed = dictationErrorSuppressesPill || panelReturnResizeActive;
+  const pillVisuallySuppressed =
+    !revealCompactPill && (dictationErrorSuppressesPill || panelReturnResizeActive);
 
   useLinuxPillInteractivity({
     pillRef: pillPresenceRef,

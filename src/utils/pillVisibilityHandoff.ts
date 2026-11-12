@@ -40,6 +40,15 @@ export function createPillVisibilityHandoff({
       publish(true);
     },
 
+    // Drop suppression immediately. An in-flight releaseAfter is superseded so
+    // it cannot publish again after a newer suppress.
+    releaseNow() {
+      if (disposed) return { released: false, superseded: true };
+      generation += 1;
+      publish(false);
+      return { released: true, superseded: false };
+    },
+
     async releaseAfter(settleBounds: () => Promise<unknown>) {
       const releaseGeneration = ++generation;
       let settleTimer: ReturnType<typeof setTimeout> | undefined;

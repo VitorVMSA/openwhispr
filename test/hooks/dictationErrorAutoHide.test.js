@@ -118,6 +118,33 @@ test("an error that never resizes the window still reveals the pill once it is g
   );
 });
 
+test("a pill window that never leaves the compact box reveals the pill", async (t) => {
+  const { settle, state } = await mountWithErrorCard(t);
+  window.innerWidth = 208;
+  window.innerHeight = 120;
+
+  await settle();
+  await React.act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2600));
+  });
+
+  assert.equal(state().revealCompactPill, true);
+  assert.equal(state().dictationErrorPillHandoffActive, false);
+});
+
+test("a wide error window keeps the pill hidden", async (t) => {
+  const { state } = await mountWithErrorCard(t);
+  window.innerWidth = 1200;
+  window.innerHeight = 800;
+
+  await React.act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2600));
+  });
+
+  assert.equal(state().revealCompactPill, false);
+  assert.equal(state().dictationErrorPillHandoffActive, true);
+});
+
 test("an error card dismissed while idle still auto-hides the window", async (t) => {
   const { hideCalls, render, settle } = await mountWithErrorCard(t);
 

@@ -8,6 +8,13 @@ import { SIZE_RANK, resolveMainWindowSizeKey } from "../utils/windowSizeLadder";
 // half-visible pill — change together.
 const PANEL_RETURN_FADE_MS = 180;
 
+// The idle pill window is 208px wide (windowConfig PILL_WINDOW_SIZE). The
+// error and menu windows are wider. A suppress that is still in force after
+// the resize deadline, while the window never left the pill box, has nothing
+// on screen: the pill is opacity 0 and the error card never took its width.
+export const COMPACT_PILL_MAX_WIDTH = 240;
+export const COMPACT_PILL_REVEAL_MS = 2500;
+
 /**
  * Single owner of the main window size: the Live Transcript panel, then the
  * ladder (error > menu > toast > compact pill > base). Grows apply immediately
@@ -30,6 +37,7 @@ export function useMainWindowSizeOwner({
   liveTranscriptOpenRef,
 }) {
   const [handoffActive, setHandoffActive] = useState(false);
+  const [revealCompactPill, setRevealCompactPill] = useState(false);
   const actionCountRef = useRef(dictationErrorActionCount);
   const dictationActiveRef = useRef(isDictationActive);
   const handoffRef = useRef(null);
@@ -154,8 +162,12 @@ export function useMainWindowSizeOwner({
       void (async () => {
         await new Promise((resolve) => setTimeout(resolve, PANEL_RETURN_FADE_MS));
         // A panel reopening during the fade re-takes the window; leave its
-        // bounds alone and let the ownership branch reveal the pill.
-        if (panelSizeReservationRef.current) return;
+        // bounds alone. Still release this suppress — the ownership branch
+        // reveals too, and bailing here left the pill at opacity 0.
+        if (panelSizeReservationRef.current) {
+          void panelReturnHandoff.releaseAfter(async () => {});
+          return;
+        }
         await panelReturnHandoff.releaseAfter(async () => {
           // A menu/toast edge can supersede the target while the fade runs.
           // Follow the size owner's latest target before revealing. A dictation
@@ -208,5 +220,29 @@ export function useMainWindowSizeOwner({
     }
   }, [dictationErrorActionCount, handoffActive, liveTranscriptMounted]);
 
-  return { dictationErrorPillHandoffActive: handoffActive, panelReturnResizeActive };
+  useEffect(() => {
+    const visuallyHeld =
+      handoffActive || panelReturnResizeActive || dictationErrorActionCount > 0;
+    if (!visuallyHeld) {
+      setRevealCompactPill(false);
+      return undefined;
+    }
+    const timer = setInterval(() => {
+      const compact = window.innerWidth <= COMPACT_PILL_MAX_WIDTH;
+      if (!compact) {
+        setRevealCompactPill(false);
+        return;
+      }
+      setRevealCompactPill(true);
+      handoffRef.current?.releaseNow();
+      panelReturnHandoffRef.current?.releaseNow();
+    }, COMPACT_PILL_REVEAL_MS);
+    return () => clearInterval(timer);
+  }, [handoffActive, panelReturnResizeActive, dictationErrorActionCount]);
+
+  return {
+    dictationErrorPillHandoffActive: handoffActive,
+    panelReturnResizeActive,
+    revealCompactPill,
+  };
 }
