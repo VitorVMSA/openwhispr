@@ -73,9 +73,16 @@ export function useMainWindowSizeOwner({
     dictationActiveRef.current = isDictationActive;
   }, [isDictationActive]);
 
+  // True only after the ladder has actually asked for the error footprint.
+  // A suppress while the live transcript still owns the window never does, and
+  // the return path below keys off the previous size. Without this flag that
+  // suppress stays in force after both the panel and the error are gone, and
+  // the idle 208×120 window keeps painting nothing.
+  const errorFootprintSeenRef = useRef(false);
   useLayoutEffect(() => {
     actionCountRef.current = dictationErrorActionCount;
     if (dictationErrorActionCount > 0) {
+      errorFootprintSeenRef.current = false;
       handoffRef.current?.suppress();
     }
   }, [dictationErrorActionCount]);
@@ -104,8 +111,13 @@ export function useMainWindowSizeOwner({
     });
     const prev = lastSizeKeyRef.current;
     lastSizeKeyRef.current = target;
+    const errorTarget =
+      target === "DICTATION_ERROR" || target === "DICTATION_ERROR_WITH_TRANSCRIPT";
+    // Set this before the same-size return. A second error action keeps the
+    // same footprint, and the layout effect cleared the flag on that change.
+    if (errorTarget) errorFootprintSeenRef.current = true;
     if (target === prev && !returningFromPanel) return undefined;
-    if (target === "DICTATION_ERROR" || target === "DICTATION_ERROR_WITH_TRANSCRIPT") {
+    if (errorTarget) {
       // Establish the final width immediately. The hidden error card then
       // measures wrapping at that width and performs one content-height resize.
       void requestMainWindowSize(target);
@@ -178,13 +190,22 @@ export function useMainWindowSizeOwner({
   ]);
 
   useEffect(() => {
-    if (dictationErrorActionCount > 0 || !handoffActive || !liveTranscriptMounted) {
+    if (dictationErrorActionCount > 0 || !handoffActive) {
       return;
     }
 
-    // A panel already owns stable native bounds, so an error displayed inside
-    // it has no compact resize to await. Release only the visual suppression.
-    void handoffRef.current?.releaseAfter(async () => {});
+    if (liveTranscriptMounted) {
+      // A panel already owns stable native bounds, so an error displayed inside
+      // it has no compact resize to await. Release only the visual suppression.
+      void handoffRef.current?.releaseAfter(async () => {});
+      return;
+    }
+
+    // The panel owned the window for the whole error, so the ladder never
+    // recorded an error footprint and the compact-return path never runs.
+    if (!errorFootprintSeenRef.current) {
+      void handoffRef.current?.releaseAfter(async () => {});
+    }
   }, [dictationErrorActionCount, handoffActive, liveTranscriptMounted]);
 
   return { dictationErrorPillHandoffActive: handoffActive, panelReturnResizeActive };
