@@ -1987,6 +1987,12 @@ class IPCHandlers {
       this.windowManager.showDictationPanel({ reposition: true });
     });
 
+    ipcMain.handle("present-dictation-surface", (event) => {
+      const win = this.windowManager?.mainWindow;
+      if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+      this.windowManager.presentDictationSurface();
+    });
+
     ipcMain.handle("open-settings-section", async (_event, section) => {
       if (
         !isSettingsTarget(section) &&

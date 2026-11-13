@@ -636,3 +636,65 @@ test("the processing ceiling releases the pill without a further hotkey", (t) =>
   assert.equal(manager._dictationLifecycleState, "idle");
   assert.deepEqual(sent, ["cancel-hotkey-pressed", "show"]);
 });
+
+test("the global shortcut reaches the stuck-processing release", async () => {
+  const { DICTATION_PROCESSING_STUCK_MS } = require("../../src/helpers/dictationProcessingWatchdog");
+  const sent = [];
+  const manager = normalWindowManager();
+  manager.mainWindow = visibleDictationWindow(sent);
+  manager._repositionToActiveDisplay = () => Promise.resolve();
+  const press = manager.createHotkeyCallback();
+
+  beginProcessing(manager);
+  sent.length = 0;
+  await press("Control+Shift+F1");
+  assert.equal(manager._dictationLifecycleState, "processing");
+  assert.deepEqual(sent, ["show"]);
+
+  manager._dictationProcessingSince = Date.now() - DICTATION_PROCESSING_STUCK_MS;
+  sent.length = 0;
+  await press("Control+Shift+F1");
+  assert.equal(manager._dictationLifecycleState, "idle");
+  assert.ok(sent.includes("cancel-hotkey-pressed"));
+  assert.ok(sent.includes("toggle-dictation"));
+});
+
+test("showing the transparent pill presents a frame on Windows", async () => {
+  const widths = [];
+  let invalidated = 0;
+  let visible = false;
+  let bounds = { x: 12, y: 34, width: 208, height: 120 };
+  const manager = new WindowManager();
+  manager.mainWindow = {
+    isDestroyed: () => false,
+    isMinimized: () => false,
+    isVisible: () => visible,
+    showInactive() {
+      visible = true;
+    },
+    hide() {
+      visible = false;
+    },
+    getBounds: () => ({ ...bounds }),
+    setBounds(next) {
+      bounds = { ...next };
+      widths.push(next.width);
+    },
+    webContents: {
+      invalidate() {
+        invalidated += 1;
+      },
+      send() {},
+    },
+  };
+
+  manager.setOnboardingActive(false);
+
+  assert.equal(visible, true);
+  assert.equal(invalidated, 1);
+  assert.deepEqual(widths, [209]);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.equal(bounds.width, 208);
+  assert.equal(bounds.x, 12);
+  assert.equal(bounds.height, 120);
+});

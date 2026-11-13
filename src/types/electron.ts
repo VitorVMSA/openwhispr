@@ -1660,6 +1660,7 @@ declare global {
       }>;
       hideWindow: () => Promise<void>;
       showDictationPanel: () => Promise<void>;
+      presentDictationSurface?: () => Promise<void>;
       openSettingsSection?: (
         section: SettingsTarget | ProviderSettingsTarget | "plansBilling"
       ) => Promise<{ success: boolean }>;

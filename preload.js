@@ -130,6 +130,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("replace-selected-text", sessionId, text, options),
   hideWindow: () => ipcRenderer.invoke("hide-window"),
   showDictationPanel: () => ipcRenderer.invoke("show-dictation-panel"),
+  presentDictationSurface: () => ipcRenderer.invoke("present-dictation-surface"),
   openSettingsSection: (section) => ipcRenderer.invoke("open-settings-section", section),
   captureDictationTarget: () => ipcRenderer.invoke("capture-dictation-target"),
   captureDictationAppCategory: () => ipcRenderer.invoke("capture-dictation-app-category"),

@@ -108,6 +108,15 @@ export default function App() {
   }, []);
 
   useWindowResizeCompensation();
+  useEffect(() => {
+    // The main process shows this window before the pill has a frame. Ask
+    // again once the page has committed; a paused animation frame must not
+    // be what decides whether the corner stays blank.
+    const timer = setTimeout(() => {
+      void window.electronAPI?.presentDictationSurface?.();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
   useMainProcessNotifications({ toast, dismiss, t });
 
   const agentAllowed = usePolicyStore(isAgentAllowed);

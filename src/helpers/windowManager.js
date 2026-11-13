@@ -707,9 +707,10 @@ class WindowManager {
       if (this.hotkeyManager.isInListeningMode()) {
         return;
       }
-      if (this.isDictationProcessing()) {
-        return;
-      }
+      // A press during processing used to return here, so it never reached the
+      // stuck-processing release. That release is what lets the hotkey start
+      // again after the ceiling.
+      if (this._holdDictationInputForProcessing()) return;
 
       const activationMode = this.getActivationMode();
       const currentHotkey = triggeredHotkey || this.hotkeyManager.getCurrentHotkey?.();
@@ -1706,16 +1707,51 @@ class WindowManager {
     if (this.mainWindow.isMinimized()) {
       this.mainWindow.restore();
     }
-    if (!this.mainWindow.isVisible()) {
+    const wasVisible = this.mainWindow.isVisible();
+    if (!wasVisible) {
       if (typeof this.mainWindow.showInactive === "function") {
         this.mainWindow.showInactive();
       } else {
         this.mainWindow.show();
       }
+      this.presentDictationSurface();
+      const shown = this.mainWindow;
+      const later = setTimeout(() => {
+        if (this.mainWindow === shown) this.presentDictationSurface();
+      }, 500);
+      later.unref?.();
     }
     if (focus) {
       this.mainWindow.focus();
     }
+  }
+
+  // showInactive on a transparent Windows window can leave the layered surface
+  // empty: the pill is in the page and the hotkey is registered, but the
+  // corner shows whatever is behind it. invalidate() asks for a frame, and a
+  // one-pixel width change is what actually makes DWM present it. The pill
+  // box is 208×120; wider surfaces are mid-resize and must not be nudged.
+  presentDictationSurface() {
+    const win = this.mainWindow;
+    if (
+      !win ||
+      win.isDestroyed() ||
+      this._onboardingActive ||
+      !win.isVisible() ||
+      (typeof win.isMinimized === "function" && win.isMinimized())
+    ) {
+      return;
+    }
+    win.webContents?.invalidate?.();
+    if (process.platform !== "win32" || this._dictationPresentTimer) return;
+    const bounds = typeof win.getBounds === "function" ? win.getBounds() : null;
+    if (!bounds || bounds.width > 240 || bounds.height > 160) return;
+    win.setBounds({ ...bounds, width: bounds.width + 1 });
+    this._dictationPresentTimer = setTimeout(() => {
+      this._dictationPresentTimer = null;
+      if (!win.isDestroyed()) win.setBounds(bounds);
+    }, 50);
+    this._dictationPresentTimer.unref?.();
   }
 
   setOnboardingActive(active) {
