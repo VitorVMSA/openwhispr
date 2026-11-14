@@ -564,3 +564,160 @@ test("share screen context does not exclude the floating pill from capture", () 
   manager._updateMainContentProtection();
   assert.deepEqual(calls, [false]);
 });
+
+function visibleDictationWindow(sent) {
+  let visible = false;
+  return {
+    isDestroyed: () => false,
+    isMinimized: () => false,
+    isVisible: () => visible,
+    restore() {},
+    show() {
+      visible = true;
+      sent.push("show");
+    },
+    showInactive() {
+      visible = true;
+      sent.push("show");
+    },
+    webContents: { send: (channel) => sent.push(channel) },
+  };
+}
+
+function beginProcessing(manager) {
+  assert.equal(manager.setDictationLifecycleState("preparing", "attempt"), true);
+  assert.equal(manager.setDictationLifecycleState("processing", "attempt"), true);
+}
+
+test("a hotkey during processing shows the pill and does not start another recording", () => {
+  const sent = [];
+  const manager = normalWindowManager();
+  manager.mainWindow = visibleDictationWindow(sent);
+  manager._repositionToActiveDisplay = () => Promise.resolve();
+  beginProcessing(manager);
+  sent.length = 0;
+
+  manager.sendStartDictation();
+
+  assert.deepEqual(sent, ["show"]);
+  assert.equal(manager._dictationLifecycleState, "processing");
+  manager.setDictationLifecycleState("idle", "attempt");
+});
+
+test("a processing lock past the ceiling cancels it and accepts the hotkey", () => {
+  const { DICTATION_PROCESSING_STUCK_MS } = require("../../src/helpers/dictationProcessingWatchdog");
+  const sent = [];
+  const manager = normalWindowManager();
+  manager.mainWindow = visibleDictationWindow(sent);
+  manager._repositionToActiveDisplay = () => Promise.resolve();
+  beginProcessing(manager);
+  manager._dictationProcessingSince = Date.now() - DICTATION_PROCESSING_STUCK_MS;
+  sent.length = 0;
+
+  manager.sendStartDictation();
+
+  assert.equal(manager._dictationLifecycleState, "idle");
+  assert.deepEqual(sent.slice(0, 2), ["cancel-hotkey-pressed", "show"]);
+  assert.ok(sent.includes("start-dictation"));
+});
+
+test("the processing ceiling releases the pill without a further hotkey", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { DICTATION_PROCESSING_STUCK_MS } = require("../../src/helpers/dictationProcessingWatchdog");
+  const sent = [];
+  const manager = normalWindowManager();
+  manager.mainWindow = visibleDictationWindow(sent);
+  manager._repositionToActiveDisplay = () => Promise.resolve();
+  beginProcessing(manager);
+  sent.length = 0;
+
+  t.mock.timers.tick(DICTATION_PROCESSING_STUCK_MS);
+
+  assert.equal(manager._dictationLifecycleState, "idle");
+  assert.deepEqual(sent, ["cancel-hotkey-pressed", "show"]);
+});
+
+test("the global shortcut reaches the stuck-processing release", async () => {
+  const { DICTATION_PROCESSING_STUCK_MS } = require("../../src/helpers/dictationProcessingWatchdog");
+  const sent = [];
+  const manager = normalWindowManager();
+  manager.mainWindow = visibleDictationWindow(sent);
+  manager._repositionToActiveDisplay = () => Promise.resolve();
+  const press = manager.createHotkeyCallback();
+
+  beginProcessing(manager);
+  sent.length = 0;
+  await press("Control+Shift+F1");
+  assert.equal(manager._dictationLifecycleState, "processing");
+  assert.deepEqual(sent, ["show"]);
+
+  manager._dictationProcessingSince = Date.now() - DICTATION_PROCESSING_STUCK_MS;
+  sent.length = 0;
+  await press("Control+Shift+F1");
+  assert.equal(manager._dictationLifecycleState, "idle");
+  assert.ok(sent.includes("cancel-hotkey-pressed"));
+  assert.ok(sent.includes("toggle-dictation"));
+});
+
+test("showing the transparent pill presents a frame on Windows", async () => {
+  const widths = [];
+  let invalidated = 0;
+  let visible = false;
+  let bounds = { x: 12, y: 34, width: 208, height: 120 };
+  const manager = new WindowManager();
+  manager.mainWindow = {
+    isDestroyed: () => false,
+    isMinimized: () => false,
+    isVisible: () => visible,
+    showInactive() {
+      visible = true;
+    },
+    hide() {
+      visible = false;
+    },
+    getBounds: () => ({ ...bounds }),
+    setBounds(next) {
+      bounds = { ...next };
+      widths.push(next.width);
+    },
+    webContents: {
+      invalidate() {
+        invalidated += 1;
+      },
+      send() {},
+    },
+  };
+
+  manager.setOnboardingActive(false);
+
+  assert.equal(visible, true);
+  assert.equal(invalidated, 1);
+  assert.deepEqual(widths, [209]);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.equal(bounds.width, 208);
+  assert.equal(bounds.x, 12);
+  assert.equal(bounds.height, 120);
+});
+
+test("a present nudge does not undo a resize that landed during it", async () => {
+  let bounds = { x: 12, y: 34, width: 208, height: 120 };
+  const manager = new WindowManager();
+  manager._onboardingActive = false;
+  manager.mainWindow = {
+    isDestroyed: () => false,
+    isMinimized: () => false,
+    isVisible: () => true,
+    getBounds: () => ({ ...bounds }),
+    setBounds(next) {
+      bounds = { ...next };
+    },
+    webContents: { invalidate() {}, send() {} },
+  };
+
+  manager.presentDictationSurface();
+  assert.equal(bounds.width, 209);
+  bounds = { x: 12, y: 34, width: 466, height: 112 };
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.equal(bounds.width, 466);
+  assert.equal(bounds.height, 112);
+});

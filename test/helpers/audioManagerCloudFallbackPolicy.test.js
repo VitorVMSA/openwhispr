@@ -507,13 +507,20 @@ test("proxied providers dispatch through the registry", async (t) => {
     });
   });
 
-  await t.test("empty responses name the provider", async () => {
-    setSettings(settingsFor("xai"));
+  await t.test("an empty successful xAI response is no speech", async () => {
+    setSettings({ ...settingsFor("xai"), allowLocalFallback: true });
+    let localCalled = false;
     window.electronAPI.proxyXaiTranscription = async () => ({ text: "   " });
-    await assert.rejects(
-      manager.processWithOpenAIAPI(audioBlob),
-      /No text transcribed - xAI response was empty/
-    );
+    window.electronAPI.transcribeLocalWhisper = async () => {
+      localCalled = true;
+      return { success: true, text: "should not run" };
+    };
+    await assert.rejects(manager.processWithOpenAIAPI(audioBlob), (error) => {
+      assert.equal(error.code, "NO_SPEECH_DETECTED");
+      assert.equal(error.message, "No speech detected in audio");
+      return true;
+    });
+    assert.equal(localCalled, false);
   });
 
   await t.test("a missing preload bridge throws for every proxied provider", async () => {

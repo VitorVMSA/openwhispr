@@ -22,6 +22,7 @@ const os = require("os");
 const { isRestorablePasteTarget } = require("./windowsPasteTarget");
 const crypto = require("crypto");
 const debugLogger = require("./debugLogger");
+const { DICTATION_PROCESSING_STUCK_MS } = require("./dictationProcessingWatchdog");
 const { ANALYTICS_HISTORY_BACKFILL_VERSION } = require("./analytics");
 const { PARAKEET_UNSUPPORTED_OS_CODE } = require("./parakeetCapability");
 const { getModelType, isSherpaLocalProvider } = require("./parakeetModelInfo");
@@ -1984,6 +1985,18 @@ class IPCHandlers {
 
     ipcMain.handle("show-dictation-panel", () => {
       this.windowManager.showDictationPanel({ reposition: true });
+    });
+
+    ipcMain.handle("present-dictation-surface", (event) => {
+      const win = this.windowManager?.mainWindow;
+      if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+      this.windowManager.presentDictationSurface();
+    });
+
+    ipcMain.handle("get-main-window-bounds", (event) => {
+      const win = this.windowManager?.mainWindow;
+      if (!win || win.isDestroyed() || event.sender !== win.webContents) return null;
+      return win.getBounds();
     });
 
     ipcMain.handle("open-settings-section", async (_event, section) => {
@@ -5464,6 +5477,7 @@ class IPCHandlers {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}` },
           body: formData,
+          signal: AbortSignal.timeout(DICTATION_PROCESSING_STUCK_MS),
         });
 
         if (!response.ok) {
@@ -5517,6 +5531,7 @@ class IPCHandlers {
             "x-api-key": apiKey,
           },
           body: formData,
+          signal: AbortSignal.timeout(DICTATION_PROCESSING_STUCK_MS),
         });
 
         if (!response.ok) {
@@ -8013,7 +8028,12 @@ class IPCHandlers {
             }
           }
 
-          const response = await proxyFetch(endpoint, { method: "POST", headers, body: formData });
+          const response = await proxyFetch(endpoint, {
+            method: "POST",
+            headers,
+            body: formData,
+            signal: AbortSignal.timeout(DICTATION_PROCESSING_STUCK_MS),
+          });
           if (!response.ok) {
             const errorText = await response.text();
             debugLogger.warn("Retry transcription provider failed", {

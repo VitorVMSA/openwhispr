@@ -189,6 +189,7 @@ export type TranscriptionErrorCode =
   | "PROVIDER_NO_RESPONSE"
   | "PROVIDER_ERROR"
   | "CRASH_RECOVERY"
+  | "NO_SPEECH_DETECTED"
   | null;
 
 export type MeetingPromptVariant = "detected" | "starting" | "underway";
@@ -1659,6 +1660,13 @@ declare global {
       }>;
       hideWindow: () => Promise<void>;
       showDictationPanel: () => Promise<void>;
+      presentDictationSurface?: () => Promise<void>;
+      getMainWindowBounds?: () => Promise<{
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      } | null>;
       openSettingsSection?: (
         section: SettingsTarget | ProviderSettingsTarget | "plansBilling"
       ) => Promise<{ success: boolean }>;

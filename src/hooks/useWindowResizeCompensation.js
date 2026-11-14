@@ -20,9 +20,29 @@ export function useWindowResizeCompensation() {
 
     let frame = 0;
     let plan = null;
+    let settleTimer = 0;
     const clearCompensation = () => {
       root.style.setProperty("--window-resize-compensation-x", "0px");
       root.style.setProperty("--window-resize-compensation-y", "0px");
+    };
+    const clearSettleTimer = () => {
+      clearTimeout(settleTimer);
+      settleTimer = 0;
+    };
+    // The 900ms backstop used to live inside the animation-frame loop. Chromium
+    // does not run that loop while this transparent window is occluded, so a
+    // mask applied from the resize event never came back off and the pill sat
+    // outside the 208px crop.
+    const armSettleTimer = () => {
+      clearSettleTimer();
+      settleTimer = setTimeout(() => {
+        settleTimer = 0;
+        if (!plan) return;
+        plan = null;
+        cancelAnimationFrame(frame);
+        frame = 0;
+        clearCompensation();
+      }, PLAN_SETTLE_TIMEOUT_MS);
     };
     const currentBounds = () => ({
       x: window.screenX,
@@ -58,6 +78,7 @@ export function useWindowResizeCompensation() {
       if (!plan) return;
       if (performance.now() - plan.installedAt >= PLAN_SETTLE_TIMEOUT_MS) {
         plan = null;
+        clearSettleTimer();
         clearCompensation();
         return;
       }
@@ -71,6 +92,7 @@ export function useWindowResizeCompensation() {
           plan.stableFrames += 1;
           if (plan.stableFrames >= 2) {
             plan = null;
+            clearSettleTimer();
             clearCompensation();
             return;
           }
@@ -86,6 +108,7 @@ export function useWindowResizeCompensation() {
       if (resize?.anchor === "none") {
         plan = null;
         cancelAnimationFrame(frame);
+        clearSettleTimer();
         clearCompensation();
         return;
       }
@@ -100,6 +123,7 @@ export function useWindowResizeCompensation() {
       };
       cancelAnimationFrame(frame);
       clearCompensation();
+      armSettleTimer();
       frame = requestAnimationFrame(sample);
       // The main process holds setBounds until the mask is armed; a fixed
       // delay on its side loses the race whenever this renderer is busy.
@@ -112,6 +136,7 @@ export function useWindowResizeCompensation() {
     return () => {
       plan = null;
       cancelAnimationFrame(frame);
+      clearSettleTimer();
       clearCompensation();
       window.removeEventListener("resize", handleRendererResize);
       unsubscribe?.();

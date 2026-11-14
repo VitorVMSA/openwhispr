@@ -8,6 +8,13 @@ import { SIZE_RANK, resolveMainWindowSizeKey } from "../utils/windowSizeLadder";
 // half-visible pill — change together.
 const PANEL_RETURN_FADE_MS = 180;
 
+// The idle pill window is 208px wide (windowConfig PILL_WINDOW_SIZE). The
+// error and menu windows are wider. A suppress that is still in force after
+// the resize deadline, while the window never left the pill box, has nothing
+// on screen: the pill is opacity 0 and the error card never took its width.
+export const COMPACT_PILL_MAX_WIDTH = 240;
+export const COMPACT_PILL_REVEAL_MS = 2500;
+
 /**
  * Single owner of the main window size: the Live Transcript panel, then the
  * ladder (error > menu > toast > compact pill > base). Grows apply immediately
@@ -30,6 +37,7 @@ export function useMainWindowSizeOwner({
   liveTranscriptOpenRef,
 }) {
   const [handoffActive, setHandoffActive] = useState(false);
+  const [revealCompactPill, setRevealCompactPill] = useState(false);
   const actionCountRef = useRef(dictationErrorActionCount);
   const dictationActiveRef = useRef(isDictationActive);
   const handoffRef = useRef(null);
@@ -73,9 +81,16 @@ export function useMainWindowSizeOwner({
     dictationActiveRef.current = isDictationActive;
   }, [isDictationActive]);
 
+  // True only after the ladder has actually asked for the error footprint.
+  // A suppress while the live transcript still owns the window never does, and
+  // the return path below keys off the previous size. Without this flag that
+  // suppress stays in force after both the panel and the error are gone, and
+  // the idle 208×120 window keeps painting nothing.
+  const errorFootprintSeenRef = useRef(false);
   useLayoutEffect(() => {
     actionCountRef.current = dictationErrorActionCount;
     if (dictationErrorActionCount > 0) {
+      errorFootprintSeenRef.current = false;
       handoffRef.current?.suppress();
     }
   }, [dictationErrorActionCount]);
@@ -104,8 +119,13 @@ export function useMainWindowSizeOwner({
     });
     const prev = lastSizeKeyRef.current;
     lastSizeKeyRef.current = target;
+    const errorTarget =
+      target === "DICTATION_ERROR" || target === "DICTATION_ERROR_WITH_TRANSCRIPT";
+    // Set this before the same-size return. A second error action keeps the
+    // same footprint, and the layout effect cleared the flag on that change.
+    if (errorTarget) errorFootprintSeenRef.current = true;
     if (target === prev && !returningFromPanel) return undefined;
-    if (target === "DICTATION_ERROR" || target === "DICTATION_ERROR_WITH_TRANSCRIPT") {
+    if (errorTarget) {
       // Establish the final width immediately. The hidden error card then
       // measures wrapping at that width and performs one content-height resize.
       void requestMainWindowSize(target);
@@ -142,8 +162,12 @@ export function useMainWindowSizeOwner({
       void (async () => {
         await new Promise((resolve) => setTimeout(resolve, PANEL_RETURN_FADE_MS));
         // A panel reopening during the fade re-takes the window; leave its
-        // bounds alone and let the ownership branch reveal the pill.
-        if (panelSizeReservationRef.current) return;
+        // bounds alone. Still release this suppress — the ownership branch
+        // reveals too, and bailing here left the pill at opacity 0.
+        if (panelSizeReservationRef.current) {
+          void panelReturnHandoff.releaseAfter(async () => {});
+          return;
+        }
         await panelReturnHandoff.releaseAfter(async () => {
           // A menu/toast edge can supersede the target while the fade runs.
           // Follow the size owner's latest target before revealing. A dictation
@@ -178,14 +202,59 @@ export function useMainWindowSizeOwner({
   ]);
 
   useEffect(() => {
-    if (dictationErrorActionCount > 0 || !handoffActive || !liveTranscriptMounted) {
+    if (dictationErrorActionCount > 0 || !handoffActive) {
       return;
     }
 
-    // A panel already owns stable native bounds, so an error displayed inside
-    // it has no compact resize to await. Release only the visual suppression.
-    void handoffRef.current?.releaseAfter(async () => {});
+    if (liveTranscriptMounted) {
+      // A panel already owns stable native bounds, so an error displayed inside
+      // it has no compact resize to await. Release only the visual suppression.
+      void handoffRef.current?.releaseAfter(async () => {});
+      return;
+    }
+
+    // The panel owned the window for the whole error, so the ladder never
+    // recorded an error footprint and the compact-return path never runs.
+    if (!errorFootprintSeenRef.current) {
+      void handoffRef.current?.releaseAfter(async () => {});
+    }
   }, [dictationErrorActionCount, handoffActive, liveTranscriptMounted]);
 
-  return { dictationErrorPillHandoffActive: handoffActive, panelReturnResizeActive };
+  useEffect(() => {
+    const visuallyHeld =
+      handoffActive || panelReturnResizeActive || dictationErrorActionCount > 0;
+    if (!visuallyHeld) {
+      setRevealCompactPill(false);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setInterval(() => {
+      void (async () => {
+        const native = await window.electronAPI?.getMainWindowBounds?.();
+        if (cancelled) return;
+        // innerWidth can stay at the error-window width after the native
+        // window is already back in the pill box, which used to refuse the
+        // reveal forever.
+        const width = typeof native?.width === "number" ? native.width : window.innerWidth;
+        if (width > COMPACT_PILL_MAX_WIDTH) {
+          setRevealCompactPill(false);
+          return;
+        }
+        setRevealCompactPill(true);
+        handoffRef.current?.releaseNow();
+        panelReturnHandoffRef.current?.releaseNow();
+        void window.electronAPI?.presentDictationSurface?.();
+      })();
+    }, COMPACT_PILL_REVEAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [handoffActive, panelReturnResizeActive, dictationErrorActionCount]);
+
+  return {
+    dictationErrorPillHandoffActive: handoffActive,
+    panelReturnResizeActive,
+    revealCompactPill,
+  };
 }

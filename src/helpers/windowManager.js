@@ -31,6 +31,10 @@ const {
   shouldIgnoreDictationHotkey,
   isDictationRecording,
 } = require("./dictationLifecycle");
+const {
+  DICTATION_PROCESSING_STUCK_MS,
+  processingStuckAt,
+} = require("./dictationProcessingWatchdog");
 const { DEV_SERVER_PORT } = DevServerManager;
 const DRAG_MOVE_TOLERANCE_PX = 2;
 const ERR_ABORTED = -3;
@@ -124,6 +128,8 @@ class WindowManager {
     this._isDictatingToggle = false;
     this._dictationLifecycleState = DICTATION_LIFECYCLE.IDLE;
     this._dictationAttempt = null;
+    this._dictationProcessingSince = null;
+    this._dictationProcessingWatchdog = null;
     this._pendingMeetingNoteNavigation = null;
     this._pendingNoteNavigation = null;
     this._pendingSettingsSection = null;
@@ -660,6 +666,13 @@ class WindowManager {
     }
     this.mainWindow.setBounds(newBounds);
     this._lastResizeBounds = newBounds;
+    if (newBounds.width <= 240 && newBounds.height <= 160) {
+      // setBounds rebuilds the transparent surface. The pill is often still
+      // hidden for that frame, so the new surface stays empty until something
+      // asks Windows to present again.
+      const later = setTimeout(() => this.presentDictationSurface(), 200);
+      later.unref?.();
+    }
     if (sizeKey === "BASE") {
       this._activeHorizontalDirection = null;
       this._notifyMainWindowHorizontalDirection();
@@ -701,9 +714,10 @@ class WindowManager {
       if (this.hotkeyManager.isInListeningMode()) {
         return;
       }
-      if (this.isDictationProcessing()) {
-        return;
-      }
+      // A press during processing used to return here, so it never reached the
+      // stuck-processing release. That release is what lets the hotkey start
+      // again after the ceiling.
+      if (this._holdDictationInputForProcessing()) return;
 
       const activationMode = this.getActivationMode();
       const currentHotkey = triggeredHotkey || this.hotkeyManager.getCurrentHotkey?.();
@@ -1000,12 +1014,7 @@ class WindowManager {
     if (this.hotkeyManager.isInListeningMode()) {
       return;
     }
-    if (shouldIgnoreDictationHotkey(this._dictationLifecycleState)) {
-      debugLogger.debug("Ignoring dictation toggle while transcription is processing", {
-        channel,
-      });
-      return;
-    }
+    if (this._holdDictationInputForProcessing()) return;
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       const isStarting = !this._isDictatingToggle;
       // Capture the paste target and any selection on every toggle press,
@@ -1051,9 +1060,58 @@ class WindowManager {
 
     this._dictationLifecycleState = nextState;
     this._isDictatingToggle = isDictationRecording(nextState);
+    this._syncDictationProcessingWatchdog();
     this.syncUserRecording();
     this.onDictationStateChanged?.();
     return true;
+  }
+
+  _dictationProcessingIsStuck(now = Date.now()) {
+    return processingStuckAt(this._dictationProcessingSince, now);
+  }
+
+  _syncDictationProcessingWatchdog() {
+    clearTimeout(this._dictationProcessingWatchdog);
+    this._dictationProcessingWatchdog = null;
+    if (this._dictationLifecycleState !== DICTATION_LIFECYCLE.PROCESSING) {
+      this._dictationProcessingSince = null;
+      return;
+    }
+    this._dictationProcessingSince = Date.now();
+    this._dictationProcessingWatchdog = setTimeout(() => {
+      this._dictationProcessingWatchdog = null;
+      this._releaseStuckDictation("watchdog");
+    }, DICTATION_PROCESSING_STUCK_MS);
+    this._dictationProcessingWatchdog.unref?.();
+  }
+
+  // Processing ignores new dictation. Past the ceiling the in-flight request is
+  // treated as stuck: cancel it, bring the pill back, and let this press start.
+  _holdDictationInputForProcessing() {
+    if (!shouldIgnoreDictationHotkey(this._dictationLifecycleState)) return false;
+    if (this._dictationProcessingIsStuck()) {
+      this._releaseStuckDictation("hotkey");
+      return false;
+    }
+    debugLogger.debug("Ignoring dictation toggle while transcription is processing");
+    this._revealDictationPanel();
+    return true;
+  }
+
+  _revealDictationPanel() {
+    const win = this.mainWindow;
+    if (!win || win.isDestroyed()) return;
+    this.showDictationPanel({ reposition: !win.isVisible() });
+  }
+
+  _releaseStuckDictation(reason) {
+    if (!shouldIgnoreDictationHotkey(this._dictationLifecycleState)) return;
+    debugLogger.warn("Releasing stuck dictation processing", { reason });
+    this.setDictationLifecycleState(DICTATION_LIFECYCLE.IDLE);
+    const win = this.mainWindow;
+    if (!win || win.isDestroyed()) return;
+    win.webContents.send("cancel-hotkey-pressed");
+    this.showDictationPanel({ reposition: true });
   }
 
   // The tray's listen item is a toggle over this state, like the pill's.
@@ -1117,9 +1175,7 @@ class WindowManager {
     if (this.hotkeyManager.isInListeningMode()) {
       return;
     }
-    if (shouldIgnoreDictationHotkey(this._dictationLifecycleState)) {
-      return;
-    }
+    if (this._holdDictationInputForProcessing()) return;
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       const targetPidPromise = this.textEditMonitor?.captureTargetPid?.();
       void this.selectionManager?.captureTarget?.();
@@ -1145,9 +1201,7 @@ class WindowManager {
     if (this.hotkeyManager.isInListeningMode()) {
       return;
     }
-    if (shouldIgnoreDictationHotkey(this._dictationLifecycleState)) {
-      return;
-    }
+    if (this._holdDictationInputForProcessing()) return;
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send("prepare-dictation");
     }
@@ -1660,16 +1714,58 @@ class WindowManager {
     if (this.mainWindow.isMinimized()) {
       this.mainWindow.restore();
     }
-    if (!this.mainWindow.isVisible()) {
+    const wasVisible = this.mainWindow.isVisible();
+    if (!wasVisible) {
       if (typeof this.mainWindow.showInactive === "function") {
         this.mainWindow.showInactive();
       } else {
         this.mainWindow.show();
       }
+      this.presentDictationSurface();
+      const shown = this.mainWindow;
+      const later = setTimeout(() => {
+        if (this.mainWindow === shown) this.presentDictationSurface();
+      }, 500);
+      later.unref?.();
     }
     if (focus) {
       this.mainWindow.focus();
     }
+  }
+
+  // showInactive on a transparent Windows window can leave the layered surface
+  // empty: the pill is in the page and the hotkey is registered, but the
+  // corner shows whatever is behind it. invalidate() asks for a frame, and a
+  // one-pixel width change is what actually makes DWM present it. The pill
+  // box is 208×120; wider surfaces are mid-resize and must not be nudged.
+  presentDictationSurface() {
+    const win = this.mainWindow;
+    if (
+      !win ||
+      win.isDestroyed() ||
+      this._onboardingActive ||
+      !win.isVisible() ||
+      (typeof win.isMinimized === "function" && win.isMinimized())
+    ) {
+      return;
+    }
+    win.webContents?.invalidate?.();
+    if (process.platform !== "win32" || this._dictationPresentTimer) return;
+    if (typeof win.getBounds !== "function" || typeof win.setBounds !== "function") return;
+    const bounds = win.getBounds();
+    if (!bounds || bounds.width > 240 || bounds.height > 160) return;
+    const nudgedWidth = bounds.width + 1;
+    win.setBounds({ ...bounds, width: nudgedWidth });
+    this._dictationPresentTimer = setTimeout(() => {
+      this._dictationPresentTimer = null;
+      if (win.isDestroyed()) return;
+      const current = typeof win.getBounds === "function" ? win.getBounds() : null;
+      // A real resize landed after the nudge. Putting the old box back would
+      // undo the error window and leave the pill outside the crop.
+      if (!current || current.width !== nudgedWidth) return;
+      win.setBounds({ ...current, width: bounds.width });
+    }, 50);
+    this._dictationPresentTimer.unref?.();
   }
 
   setOnboardingActive(active) {

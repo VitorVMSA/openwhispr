@@ -14,7 +14,7 @@ const AUTO_HIDE_ON = `
 
 // Mount the real size owner with "Auto-hide when idle" enabled and an error
 // card on screen, then dismiss the card the way Retry does.
-async function mountWithErrorCard(t) {
+async function mountWithErrorCard(t, initial = {}) {
   // Registered before the browser globals so React still has `window` when the
   // harness tears the root down.
   let root = null;
@@ -50,6 +50,7 @@ async function mountWithErrorCard(t) {
     liveTranscriptOpen: false,
     liveTranscriptMounted: false,
     liveTranscriptOpenRef: closed,
+    ...initial,
   };
   let result;
   function Harness() {
@@ -87,6 +88,80 @@ test("Retry keeps the pill window on screen while the new dictation runs", async
 
   assert.deepEqual(hideCalls, [], "auto-hide must not hide a window that is still recording");
   assert.equal(state().dictationErrorPillHandoffActive, false, "the pill must be revealed again");
+});
+
+test("an error that never resizes the window still reveals the pill once it is gone", async (t) => {
+  const open = { current: true };
+  const { render, settle, state } = await mountWithErrorCard(t, {
+    liveTranscriptOpen: true,
+    liveTranscriptMounted: true,
+    liveTranscriptOpenRef: open,
+  });
+
+  assert.equal(state().dictationErrorPillHandoffActive, true);
+
+  // The panel closes with the error, in the same update, before the ladder
+  // ever requests the error footprint.
+  open.current = false;
+  await render({
+    dictationErrorActionCount: 0,
+    liveTranscriptOpen: false,
+    liveTranscriptMounted: false,
+    isDictationActive: false,
+  });
+  await settle();
+
+  assert.equal(
+    state().dictationErrorPillHandoffActive,
+    false,
+    "the idle window must not keep the pill at opacity 0"
+  );
+});
+
+test("a pill window that never leaves the compact box reveals the pill", async (t) => {
+  const { settle, state } = await mountWithErrorCard(t);
+  window.innerWidth = 208;
+  window.innerHeight = 120;
+
+  await settle();
+  await React.act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2600));
+  });
+
+  assert.equal(state().revealCompactPill, true);
+  assert.equal(state().dictationErrorPillHandoffActive, false);
+});
+
+test("a stale wide viewport still reveals when the native window is the pill", async (t) => {
+  const { state } = await mountWithErrorCard(t);
+  window.innerWidth = 1200;
+  window.innerHeight = 800;
+  window.electronAPI.getMainWindowBounds = async () => ({
+    x: 0,
+    y: 0,
+    width: 208,
+    height: 120,
+  });
+
+  await React.act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2600));
+  });
+
+  assert.equal(state().revealCompactPill, true);
+  assert.equal(state().dictationErrorPillHandoffActive, false);
+});
+
+test("a wide error window keeps the pill hidden", async (t) => {
+  const { state } = await mountWithErrorCard(t);
+  window.innerWidth = 1200;
+  window.innerHeight = 800;
+
+  await React.act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2600));
+  });
+
+  assert.equal(state().revealCompactPill, false);
+  assert.equal(state().dictationErrorPillHandoffActive, true);
 });
 
 test("an error card dismissed while idle still auto-hides the window", async (t) => {
