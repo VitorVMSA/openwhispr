@@ -698,3 +698,26 @@ test("showing the transparent pill presents a frame on Windows", async () => {
   assert.equal(bounds.x, 12);
   assert.equal(bounds.height, 120);
 });
+
+test("a present nudge does not undo a resize that landed during it", async () => {
+  let bounds = { x: 12, y: 34, width: 208, height: 120 };
+  const manager = new WindowManager();
+  manager._onboardingActive = false;
+  manager.mainWindow = {
+    isDestroyed: () => false,
+    isMinimized: () => false,
+    isVisible: () => true,
+    getBounds: () => ({ ...bounds }),
+    setBounds(next) {
+      bounds = { ...next };
+    },
+    webContents: { invalidate() {}, send() {} },
+  };
+
+  manager.presentDictationSurface();
+  assert.equal(bounds.width, 209);
+  bounds = { x: 12, y: 34, width: 466, height: 112 };
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.equal(bounds.width, 466);
+  assert.equal(bounds.height, 112);
+});

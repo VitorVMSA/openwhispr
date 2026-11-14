@@ -132,6 +132,25 @@ test("a pill window that never leaves the compact box reveals the pill", async (
   assert.equal(state().dictationErrorPillHandoffActive, false);
 });
 
+test("a stale wide viewport still reveals when the native window is the pill", async (t) => {
+  const { state } = await mountWithErrorCard(t);
+  window.innerWidth = 1200;
+  window.innerHeight = 800;
+  window.electronAPI.getMainWindowBounds = async () => ({
+    x: 0,
+    y: 0,
+    width: 208,
+    height: 120,
+  });
+
+  await React.act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2600));
+  });
+
+  assert.equal(state().revealCompactPill, true);
+  assert.equal(state().dictationErrorPillHandoffActive, false);
+});
+
 test("a wide error window keeps the pill hidden", async (t) => {
   const { state } = await mountWithErrorCard(t);
   window.innerWidth = 1200;

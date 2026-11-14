@@ -227,17 +227,29 @@ export function useMainWindowSizeOwner({
       setRevealCompactPill(false);
       return undefined;
     }
+    let cancelled = false;
     const timer = setInterval(() => {
-      const compact = window.innerWidth <= COMPACT_PILL_MAX_WIDTH;
-      if (!compact) {
-        setRevealCompactPill(false);
-        return;
-      }
-      setRevealCompactPill(true);
-      handoffRef.current?.releaseNow();
-      panelReturnHandoffRef.current?.releaseNow();
+      void (async () => {
+        const native = await window.electronAPI?.getMainWindowBounds?.();
+        if (cancelled) return;
+        // innerWidth can stay at the error-window width after the native
+        // window is already back in the pill box, which used to refuse the
+        // reveal forever.
+        const width = typeof native?.width === "number" ? native.width : window.innerWidth;
+        if (width > COMPACT_PILL_MAX_WIDTH) {
+          setRevealCompactPill(false);
+          return;
+        }
+        setRevealCompactPill(true);
+        handoffRef.current?.releaseNow();
+        panelReturnHandoffRef.current?.releaseNow();
+        void window.electronAPI?.presentDictationSurface?.();
+      })();
     }, COMPACT_PILL_REVEAL_MS);
-    return () => clearInterval(timer);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [handoffActive, panelReturnResizeActive, dictationErrorActionCount]);
 
   return {

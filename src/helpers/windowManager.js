@@ -666,6 +666,13 @@ class WindowManager {
     }
     this.mainWindow.setBounds(newBounds);
     this._lastResizeBounds = newBounds;
+    if (newBounds.width <= 240 && newBounds.height <= 160) {
+      // setBounds rebuilds the transparent surface. The pill is often still
+      // hidden for that frame, so the new surface stays empty until something
+      // asks Windows to present again.
+      const later = setTimeout(() => this.presentDictationSurface(), 200);
+      later.unref?.();
+    }
     if (sizeKey === "BASE") {
       this._activeHorizontalDirection = null;
       this._notifyMainWindowHorizontalDirection();
@@ -1744,12 +1751,19 @@ class WindowManager {
     }
     win.webContents?.invalidate?.();
     if (process.platform !== "win32" || this._dictationPresentTimer) return;
-    const bounds = typeof win.getBounds === "function" ? win.getBounds() : null;
+    if (typeof win.getBounds !== "function" || typeof win.setBounds !== "function") return;
+    const bounds = win.getBounds();
     if (!bounds || bounds.width > 240 || bounds.height > 160) return;
-    win.setBounds({ ...bounds, width: bounds.width + 1 });
+    const nudgedWidth = bounds.width + 1;
+    win.setBounds({ ...bounds, width: nudgedWidth });
     this._dictationPresentTimer = setTimeout(() => {
       this._dictationPresentTimer = null;
-      if (!win.isDestroyed()) win.setBounds(bounds);
+      if (win.isDestroyed()) return;
+      const current = typeof win.getBounds === "function" ? win.getBounds() : null;
+      // A real resize landed after the nudge. Putting the old box back would
+      // undo the error window and leave the pill outside the crop.
+      if (!current || current.width !== nudgedWidth) return;
+      win.setBounds({ ...current, width: bounds.width });
     }, 50);
     this._dictationPresentTimer.unref?.();
   }

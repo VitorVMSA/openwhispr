@@ -498,6 +498,21 @@ export default function App() {
   // masked shrink back from the Live Transcript panel.
   const pillVisuallySuppressed =
     !revealCompactPill && (dictationErrorSuppressesPill || panelReturnResizeActive);
+  const pillWasSuppressedRef = useRef(false);
+  useEffect(() => {
+    if (pillVisuallySuppressed) {
+      pillWasSuppressedRef.current = true;
+      return undefined;
+    }
+    if (!pillWasSuppressedRef.current) return undefined;
+    pillWasSuppressedRef.current = false;
+    // Shrinking the transparent window rebuilds an empty surface while the
+    // pill is hidden. The show-time present does not run again here.
+    const timer = setTimeout(() => {
+      void window.electronAPI?.presentDictationSurface?.();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [pillVisuallySuppressed]);
 
   useLinuxPillInteractivity({
     pillRef: pillPresenceRef,

@@ -1993,6 +1993,12 @@ class IPCHandlers {
       this.windowManager.presentDictationSurface();
     });
 
+    ipcMain.handle("get-main-window-bounds", (event) => {
+      const win = this.windowManager?.mainWindow;
+      if (!win || win.isDestroyed() || event.sender !== win.webContents) return null;
+      return win.getBounds();
+    });
+
     ipcMain.handle("open-settings-section", async (_event, section) => {
       if (
         !isSettingsTarget(section) &&
