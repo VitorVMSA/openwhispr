@@ -56,6 +56,8 @@ test("the mount effect recovers interrupted recordings with the translated messa
   });
   const { useAudioRecording } = await vite.ssrLoadModule("/hooks/useAudioRecording.js");
   const { recoveries } = await vite.ssrLoadModule("/helpers/audioManager");
+  const { default: i18n } = await vite.ssrLoadModule("/i18n.ts");
+  await i18n.changeLanguage("en");
 
   function Harness() {
     useAudioRecording(() => {}, { onDemoEvent: () => {} });

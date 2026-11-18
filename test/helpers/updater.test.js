@@ -44,10 +44,12 @@ function makeAutoUpdater({ offline = false } = {}) {
 
 // updater.js requires electron and child_process lazily (constructor, cleanup(),
 // Rosetta probe), so the mocks stay installed until afterEach.
-function createUpdateManager(autoUpdater) {
+function createUpdateManager(autoUpdater, { localBuild = false } = {}) {
   delete require.cache[updaterModulePath];
   Module._load = function loadWithMocks(request, parent, isMain) {
     if (request === "electron-updater") return { autoUpdater };
+    if (request === "../package.json" && parent?.filename === updaterModulePath)
+      return { localBuild };
     if (request === "electron") return { autoUpdater: { on() {}, removeListener() {} } };
     if (request === "child_process") return { execSync: () => "0" };
     return originalLoad.call(this, request, parent, isMain);
@@ -55,6 +57,27 @@ function createUpdateManager(autoUpdater) {
   const UpdateManager = require(updaterModulePath);
   return new UpdateManager();
 }
+
+test("local builds never check, download or install an upstream replacement", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const autoUpdater = makeAutoUpdater();
+  let installs = 0;
+  autoUpdater.quitAndInstall = () => installs++;
+  const manager = createUpdateManager(autoUpdater, { localBuild: true });
+  manager.setAutoUpdatesEnabled(true);
+  manager.checkForUpdatesOnStartup();
+  t.mock.timers.tick(STARTUP_DELAY_MS + PERIODIC_INTERVAL_MS);
+  assert.equal((await manager.checkForUpdates()).updateAvailable, false);
+  assert.equal((await manager.downloadUpdate()).success, false);
+  manager.updateDownloaded = true; // even a previously staged upstream installer
+  assert.equal((await manager.installUpdate()).success, false);
+  assert.equal(autoUpdater.calls, 0);
+  assert.equal(autoUpdater.downloads, 0);
+  assert.equal(installs, 0);
+  assert.equal(autoUpdater.autoInstallOnAppQuit, false);
+  assert.equal((await manager.getUpdateStatus()).isSupported, false);
+  manager.cleanup();
+});
 
 function makeRendererWindow(sent) {
   return {

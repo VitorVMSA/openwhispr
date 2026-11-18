@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const Module = require("node:module");
+const { EventEmitter } = require("node:events");
 
 // Same stub set as windowManagerMeetingNotification.test.js: WindowManager
 // pulls in electron + sibling managers at require time.
@@ -75,6 +76,7 @@ Module._load = function loadWindowManagerWithStubs(request, parent, isMain) {
   }
   if (request === "./debugLogger")
     return { warn: () => undefined, debug: () => undefined, log: () => undefined };
+  if (request === "./dictationHealthLog") return { logDictationHealth() {} };
   if (request === "./hotkeyManager") {
     const FakeHotkeyManager = class {
       unregisterAll() {}
@@ -141,6 +143,23 @@ Module._load = function loadWindowManagerWithStubs(request, parent, isMain) {
 };
 const WindowManager = require("../../src/helpers/windowManager");
 Module._load = originalLoad;
+
+test("the real dictation window event wiring reloads a crashed renderer and releases processing", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const manager = new WindowManager();
+  const win = new EventEmitter();
+  win.webContents = new EventEmitter();
+  win.isDestroyed = () => false;
+  manager.mainWindow = win;
+  manager._dictationLifecycleState = "processing";
+  let reloads = 0;
+  win.webContents.reload = () => reloads++;
+  manager.registerMainWindowEvents();
+  win.webContents.emit("render-process-gone", {}, { reason: "crashed", exitCode: 1 });
+  t.mock.timers.tick(1000);
+  assert.equal(manager._dictationLifecycleState, "idle");
+  assert.equal(reloads, 1);
+});
 
 function fakeWindow({ visible, focused = false }) {
   const calls = [];
@@ -221,7 +240,10 @@ test("overlay links open in the browser, never an in-app window or a local file"
   opened.length = 0;
   let prevented = 0;
   const event = { preventDefault: () => (prevented += 1) };
-  listeners.get("will-navigate")(event, "file:///app/index.html?panel=false");
+  listeners.get("will-navigate")(
+    event,
+    `${require("node:url").pathToFileURL("/app/index.html").href}?panel=false`
+  );
   listeners.get("will-navigate")(event, "https://attacker.example/");
   listeners.get("will-navigate")(event, "file:///C:/Windows/System32/cmd.exe");
   assert.equal(prevented, 2, "only the app's own reload may navigate the window");
@@ -605,7 +627,9 @@ test("a hotkey during processing shows the pill and does not start another recor
 });
 
 test("a processing lock past the ceiling cancels it and accepts the hotkey", () => {
-  const { DICTATION_PROCESSING_STUCK_MS } = require("../../src/helpers/dictationProcessingWatchdog");
+  const {
+    DICTATION_PROCESSING_STUCK_MS,
+  } = require("../../src/helpers/dictationProcessingWatchdog");
   const sent = [];
   const manager = normalWindowManager();
   manager.mainWindow = visibleDictationWindow(sent);
@@ -623,7 +647,9 @@ test("a processing lock past the ceiling cancels it and accepts the hotkey", () 
 
 test("the processing ceiling releases the pill without a further hotkey", (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const { DICTATION_PROCESSING_STUCK_MS } = require("../../src/helpers/dictationProcessingWatchdog");
+  const {
+    DICTATION_PROCESSING_STUCK_MS,
+  } = require("../../src/helpers/dictationProcessingWatchdog");
   const sent = [];
   const manager = normalWindowManager();
   manager.mainWindow = visibleDictationWindow(sent);
@@ -638,7 +664,9 @@ test("the processing ceiling releases the pill without a further hotkey", (t) =>
 });
 
 test("the global shortcut reaches the stuck-processing release", async () => {
-  const { DICTATION_PROCESSING_STUCK_MS } = require("../../src/helpers/dictationProcessingWatchdog");
+  const {
+    DICTATION_PROCESSING_STUCK_MS,
+  } = require("../../src/helpers/dictationProcessingWatchdog");
   const sent = [];
   const manager = normalWindowManager();
   manager.mainWindow = visibleDictationWindow(sent);

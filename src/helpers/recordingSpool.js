@@ -8,6 +8,13 @@ import logger from "../utils/logger";
 // (takeInterruptedRecordings), before any recording.
 const DB_NAME = "openwhispr-recording-spool";
 const STORE = "chunks";
+// Never materialize an entire backlog of IndexedDB Blob handles. An abandoned
+// overnight recording can contain hundreds of thousands of chunks; getAll()
+// then overwhelms Chromium's native Blob IPC even while JavaScript is idle.
+const RECOVERY_PAGE_SIZE = 128;
+const MAX_RECOVERY_CHUNKS = 16384;
+const MAX_RECOVERY_BYTES = 64 * 1024 * 1024;
+const MAX_RECOVERY_SESSIONS = 64;
 
 // Every session this page started, finished or not. Anything else in the store
 // belongs to a page that closed before its recording was saved.
@@ -91,6 +98,19 @@ export function startRecordingSpool(routeKind = null) {
   };
 }
 
+function readRequest(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function deferRecovery(chunkCount) {
+  // Keep the original for explicit recovery; never truncate or delete audio
+  // merely because automatic recovery exceeds its resource budget.
+  logger.warn("Interrupted recording recovery deferred: resource limit", { chunkCount }, "audio");
+}
+
 // Once per page, so a second caller can't save the same recording twice.
 export async function takeInterruptedRecordings() {
   if (interruptedTaken) return [];
@@ -98,38 +118,76 @@ export async function takeInterruptedRecordings() {
 
   const db = await openDb();
   if (!db) return [];
-  const rows = await new Promise((resolve, reject) => {
-    const request = db.transaction(STORE).objectStore(STORE).getAll();
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-
-  const sessions = new Map();
-  for (const row of rows) {
-    if (pageSessions.has(row.sessionId)) continue;
-    let session = sessions.get(row.sessionId);
-    if (!session) {
-      session = {
-        startedAt: row.startedAt,
-        routeKind: row.routeKind,
-        lastAt: row.at,
-        segments: [],
-      };
-      sessions.set(row.sessionId, session);
-    }
-    session.lastAt = row.at;
-    (session.segments[row.segment] ??= { mimeType: row.mimeType, chunks: [] }).chunks.push(
-      row.chunk
+  const store = () => db.transaction(STORE).objectStore(STORE);
+  const recordings = [];
+  let after = null;
+  let bytesRead = 0;
+  let chunksRead = 0;
+  for (let inspected = 0; inspected < MAX_RECOVERY_SESSIONS; inspected++) {
+    // Key-only traversal skips oversized and currently active sessions without
+    // asking Chromium to create even one Blob handle for them.
+    const cursor = await readRequest(
+      store().openKeyCursor(after ? IDBKeyRange.lowerBound(after, true) : null)
     );
-  }
+    if (!cursor) break;
+    const sessionId = cursor.key[0];
+    after = [sessionId, Infinity];
+    if (pageSessions.has(sessionId)) continue;
+    const range = IDBKeyRange.bound([sessionId, 0], after);
+    const count = await readRequest(store().count(range));
+    if (count > MAX_RECOVERY_CHUNKS - chunksRead) {
+      deferRecovery(count);
+      continue;
+    }
 
-  return [...sessions].map(([sessionId, session]) => ({
-    startedAt: session.startedAt,
-    durationMs: session.lastAt - session.startedAt,
-    routeKind: session.routeKind,
-    segments: session.segments
-      .filter(Boolean)
-      .map(({ mimeType, chunks }) => new Blob(chunks, { type: mimeType })),
-    discard: () => discardSession(sessionId),
-  }));
+    let lower = [sessionId, 0];
+    let exclusive = false;
+    let first;
+    let lastAt;
+    let deferred = false;
+    const segments = new Map();
+    while (true) {
+      const rows = await readRequest(
+        store().getAll(IDBKeyRange.bound(lower, after, exclusive), RECOVERY_PAGE_SIZE)
+      );
+      if (!rows.length) break;
+      for (const row of rows) {
+        if (bytesRead + row.chunk.size > MAX_RECOVERY_BYTES || chunksRead >= MAX_RECOVERY_CHUNKS) {
+          deferred = true;
+          break;
+        }
+        first ??= { startedAt: row.startedAt, routeKind: row.routeKind };
+        lastAt = row.at;
+        let segment = segments.get(row.segment);
+        if (!segment) {
+          segment = { mimeType: row.mimeType, chunks: [] };
+          segments.set(row.segment, segment);
+        }
+        bytesRead += row.chunk.size;
+        chunksRead++;
+        // Own bounded bytes rather than retaining a growing graph of native
+        // Blob references (including when the result Blob is assembled).
+        segment.chunks.push(await row.chunk.arrayBuffer());
+      }
+      if (deferred || rows.length < RECOVERY_PAGE_SIZE) break;
+      lower = [sessionId, rows[rows.length - 1].seq];
+      exclusive = true;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    if (deferred) {
+      deferRecovery(count);
+      continue;
+    }
+    if (first) {
+      recordings.push({
+        ...first,
+        durationMs: lastAt - first.startedAt,
+        segments: [...segments.values()].map(
+          ({ mimeType, chunks }) => new Blob(chunks, { type: mimeType })
+        ),
+        discard: () => discardSession(sessionId),
+      });
+    }
+  }
+  return recordings;
 }

@@ -1,4 +1,6 @@
 const { autoUpdater } = require("electron-updater");
+const { localBuild } = require("../package.json");
+const LOCAL_UPDATE_MESSAGE = "Local build: install updates from your local installer";
 
 // electron-updater can only replace an AppImage on Linux; deb, rpm and tar.gz
 // installs are updated by the package manager instead.
@@ -27,6 +29,13 @@ class UpdateManager {
   }
 
   setupAutoUpdater() {
+    // A fork must never silently replace its fixes with the upstream release.
+    // Also disable installation of any upstream update left in the cache.
+    if (localBuild) {
+      autoUpdater.autoDownload = false;
+      autoUpdater.autoInstallOnAppQuit = false;
+      return;
+    }
     if (process.env.NODE_ENV === "development") {
       return;
     }
@@ -157,6 +166,7 @@ class UpdateManager {
   }
 
   async checkForUpdates() {
+    if (localBuild) return { updateAvailable: false, message: LOCAL_UPDATE_MESSAGE };
     try {
       if (process.env.NODE_ENV === "development") {
         return {
@@ -198,6 +208,7 @@ class UpdateManager {
   }
 
   async downloadUpdate() {
+    if (localBuild) return { success: false, message: LOCAL_UPDATE_MESSAGE };
     try {
       if (process.env.NODE_ENV === "development") {
         return {
@@ -234,6 +245,7 @@ class UpdateManager {
   }
 
   async installUpdate() {
+    if (localBuild) return { success: false, message: LOCAL_UPDATE_MESSAGE };
     try {
       if (process.env.NODE_ENV === "development") {
         return {
@@ -286,7 +298,7 @@ class UpdateManager {
         updateAvailable: this.updateAvailable,
         updateDownloaded: this.updateDownloaded,
         isDevelopment: process.env.NODE_ENV === "development",
-        isSupported: isUpdaterSupported,
+        isSupported: isUpdaterSupported && !localBuild,
       };
     } catch (error) {
       console.error("❌ Error getting update status:", error);
@@ -332,6 +344,7 @@ class UpdateManager {
   // Checks always run so the sidebar can offer a manual download when automatic
   // updates are off; a failed background check is logged and never surfaced.
   _autoCheckForUpdates(label) {
+    if (localBuild) return;
     console.log(`🔄 ${label} update check...`);
     autoUpdater.checkForUpdates().catch((err) => {
       console.error(`${label} update check failed:`, err);
@@ -339,6 +352,7 @@ class UpdateManager {
   }
 
   checkForUpdatesOnStartup() {
+    if (localBuild) return;
     if (process.env.NODE_ENV !== "development" && isUpdaterSupported) {
       setTimeout(() => {
         this._autoCheckForUpdates("Startup");

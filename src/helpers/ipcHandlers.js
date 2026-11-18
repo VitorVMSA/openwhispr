@@ -6571,6 +6571,14 @@ class IPCHandlers {
     });
 
     ipcMain.handle("app-log", async (event, entry) => {
+      if (
+        entry?.scope === "audio" &&
+        entry?.message === "Interrupted recording recovery deferred: resource limit"
+      ) {
+        require("./dictationHealthLog").logDictationHealth("spool-recovery-deferred", {
+          chunkCount: entry.meta?.chunkCount,
+        });
+      }
       debugLogger.logEntry(entry);
       return { success: true };
     });

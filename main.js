@@ -467,6 +467,7 @@ function initializeCoreManagers() {
 
   debugLogger = require("./src/helpers/debugLogger");
   debugLogger.ensureFileLogging();
+  require("./src/helpers/dictationHealthLog").logDictationHealth("startup");
   if (process.platform === "linux") {
     // The compositing mode is settled once the GPU process has reported its info; a GPU
     // process crash can still drop it to software later, logged below.
@@ -482,6 +483,7 @@ function initializeCoreManagers() {
   }
   app.on("child-process-gone", (_event, details) => {
     if (details.type !== "GPU") return;
+    require("./src/helpers/dictationHealthLog").logDictationHealth("gpu-gone", details);
     debugLogger.warn("GPU process gone", { reason: details.reason, exitCode: details.exitCode });
   });
   // Registration runs before app ready, when the logger cannot write its file yet.

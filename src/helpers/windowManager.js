@@ -61,6 +61,8 @@ const MEETING_NOTIFICATION_CARD_REGION = Object.freeze({
 const { centeredBounds, clampedBounds } = require("./onboardingWindowBounds");
 const { ONBOARDING_DEMO_KINDS, isOnboardingInputAllowed } = require("./onboardingInputPolicy");
 const { createHotkeyRepeatGate } = require("./hotkeyRepeatGate");
+const { watchDictationRenderer } = require("./dictationRendererRecovery");
+const { logDictationHealth } = require("./dictationHealthLog");
 
 // The renderer asks for a window mode per onboarding step; each one names its
 // size in ONBOARDING_WINDOW_SIZES. "restore" is handled separately.
@@ -1106,6 +1108,7 @@ class WindowManager {
 
   _releaseStuckDictation(reason) {
     if (!shouldIgnoreDictationHotkey(this._dictationLifecycleState)) return;
+    logDictationHealth("processing-timeout");
     debugLogger.warn("Releasing stuck dictation processing", { reason });
     this.setDictationLifecycleState(DICTATION_LIFECYCLE.IDLE);
     const win = this.mainWindow;
@@ -2014,6 +2017,26 @@ class WindowManager {
     if (!this.mainWindow) {
       return;
     }
+
+    const dictationWindow = this.mainWindow;
+    watchDictationRenderer(dictationWindow, {
+      isQuitting: () => this.isQuitting || this.mainWindow !== dictationWindow,
+      release: () => {
+        clearTimeout(this.winPushState?.safetyTimeoutId);
+        clearTimeout(this.macCompoundPushState?.safetyTimeoutId);
+        this.winPushState = null;
+        this.macCompoundPushState = null;
+        this.setDictationLifecycleState(DICTATION_LIFECYCLE.IDLE);
+      },
+      reload: () => dictationWindow.webContents.reload(),
+      report: logDictationHealth,
+      exhausted: () =>
+        dialog.showErrorBox(
+          "OpenWhispr — transcrição indisponível",
+          "A janela de transcrição falhou repetidamente. Reinicie o OpenWhispr. " +
+            "O diagnóstico foi registrado em logs/dictation-health.log."
+        ),
+    });
 
     if (process.platform === "linux") {
       const win = this.mainWindow;
