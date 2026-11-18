@@ -5,6 +5,9 @@ interface PillVisibilityHandoffOptions {
   shouldAutoHide?: () => boolean;
   hideWindow?: () => Promise<unknown> | undefined;
   waitForFrames?: () => Promise<void>;
+  // A resize that never answers must not leave the pill at opacity 0. The
+  // native window stays visible, so the corner looks empty.
+  settleTimeoutMs?: number;
 }
 
 /**
@@ -19,6 +22,7 @@ export function createPillVisibilityHandoff({
   shouldAutoHide = () => false,
   hideWindow = () => undefined,
   waitForFrames = waitForVisualFrames,
+  settleTimeoutMs = 2000,
 }: PillVisibilityHandoffOptions) {
   let generation = 0;
   let suppressed = false;
@@ -36,10 +40,29 @@ export function createPillVisibilityHandoff({
       publish(true);
     },
 
+    // Drop suppression immediately. An in-flight releaseAfter is superseded so
+    // it cannot publish again after a newer suppress.
+    releaseNow() {
+      if (disposed) return { released: false, superseded: true };
+      generation += 1;
+      publish(false);
+      return { released: true, superseded: false };
+    },
+
     async releaseAfter(settleBounds: () => Promise<unknown>) {
       const releaseGeneration = ++generation;
+      let settleTimer: ReturnType<typeof setTimeout> | undefined;
+      const settleTimeout = new Promise((_, reject) => {
+        settleTimer = setTimeout(
+          () => reject(new Error("pill-handoff-timeout")),
+          settleTimeoutMs
+        );
+      });
+      // Keep a late rejection off the unhandled path once the timeout won.
+      const boundsPromise = Promise.resolve().then(() => settleBounds());
+      boundsPromise.catch(() => {});
       try {
-        await settleBounds();
+        await Promise.race([boundsPromise, settleTimeout]);
         if (disposed || releaseGeneration !== generation) {
           return { released: false, superseded: true };
         }
@@ -50,8 +73,10 @@ export function createPillVisibilityHandoff({
           await waitForFrames();
         }
       } catch {
-        // A destroyed native window should not strand the next renderer mount
-        // in a permanently suppressed state.
+        // A destroyed native window, or a resize that never answers, must not
+        // strand the next renderer mount in a permanently suppressed state.
+      } finally {
+        clearTimeout(settleTimer);
       }
 
       if (disposed || releaseGeneration !== generation) {

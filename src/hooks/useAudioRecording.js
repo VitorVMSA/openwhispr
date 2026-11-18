@@ -1321,9 +1321,14 @@ export const useAudioRecording = (toast, options = {}) => {
     voiceAgentRequested = false,
     translationRequested = false,
   } = {}) => {
-    if (!isRecording && !isProcessing && !isPasting) {
+    // React state lags the manager by a render. A press that cancels a stuck
+    // transcription and starts the next one arrives in that gap.
+    const managerState = audioManagerRef.current?.getState?.();
+    const recording = managerState ? !!managerState.isRecording : isRecording;
+    const processing = managerState ? !!managerState.isProcessing : isProcessing;
+    if (!recording && !processing && !isPasting) {
       await performStartRecording({ voiceAgentRequested, translationRequested });
-    } else if (isRecording) {
+    } else if (recording) {
       await performStopRecording();
     }
   };

@@ -84,6 +84,7 @@ export default function TranscriptionItem({
   };
 
   const isFailed = item.status === "failed";
+  const isNoSpeech = isFailed && item.error_code === "NO_SPEECH_DETECTED";
   const isDiscarded = item.status === "discarded";
   const isTranscribed = !isFailed && !isDiscarded;
   const discardedDuration =
@@ -224,19 +225,38 @@ export default function TranscriptionItem({
       <div className="mt-1.5">
         {isFailed ? (
           <div className="flex items-start gap-2">
-            <AlertCircle size={14} className="mt-0.5 shrink-0 text-destructive" />
+            <AlertCircle
+              size={14}
+              className={cn(
+                "mt-0.5 shrink-0",
+                isNoSpeech ? "text-muted-foreground" : "text-destructive"
+              )}
+            />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-destructive">
+              <p
+                className={cn(
+                  "text-sm font-medium",
+                  isNoSpeech ? "text-foreground" : "text-destructive"
+                )}
+              >
                 {t(
-                  hasKeptText
-                    ? "controlPanel.history.editFailedTranscriptKept"
-                    : "controlPanel.history.transcriptionFailed"
+                  isNoSpeech
+                    ? "hooks.audioRecording.noAudio.title"
+                    : hasKeptText
+                      ? "controlPanel.history.editFailedTranscriptKept"
+                      : "controlPanel.history.transcriptionFailed"
                 )}
               </p>
-              {item.error_message && (
+              {isNoSpeech ? (
                 <p className="mt-0.5 text-xs leading-relaxed wrap-break-word text-muted-foreground">
-                  {item.error_message}
+                  {t("hooks.audioRecording.noAudio.description")}
                 </p>
+              ) : (
+                item.error_message && (
+                  <p className="mt-0.5 text-xs leading-relaxed wrap-break-word text-muted-foreground">
+                    {item.error_message}
+                  </p>
+                )
               )}
               {isConfigError && hasKeptText && (
                 <p className="mt-1 text-xs text-muted-foreground">

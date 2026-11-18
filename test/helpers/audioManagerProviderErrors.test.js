@@ -123,3 +123,42 @@ test("a proxied provider's already-classified failure passes through unchanged",
   assert.equal(error.status, 401);
   assert.equal(error.settingsTarget, "speechToText");
 });
+
+test("a successful empty transcription is no speech", async (t) => {
+  let localCalled = false;
+  const manager = await loadManager(
+    t,
+    { cloudTranscriptionProvider: "openai", allowLocalFallback: true },
+    {
+      transcribeLocalWhisper: async () => {
+        localCalled = true;
+        return { success: true, text: "should not run" };
+      },
+    }
+  );
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async () =>
+      new Response(JSON.stringify({ text: "  \n" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+  );
+
+  const error = await rejection(manager.processWithOpenAIAPI(recording()));
+
+  assert.equal(error.code, "NO_SPEECH_DETECTED");
+  assert.equal(error.message, "No speech detected in audio");
+  assert.equal(localCalled, false);
+});
+
+test("a successful response that is not JSON stays a transcription failure", async (t) => {
+  const manager = await loadManager(t, { cloudTranscriptionProvider: "openai" });
+  t.mock.method(globalThis, "fetch", async () => new Response("not-json", { status: 200 }));
+
+  const error = await rejection(manager.processWithOpenAIAPI(recording()));
+
+  assert.notEqual(error.code, "NO_SPEECH_DETECTED");
+  assert.match(error.message, /Failed to parse API response/);
+});

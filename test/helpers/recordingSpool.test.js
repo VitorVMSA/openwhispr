@@ -9,7 +9,7 @@ const { createRendererServer } = require("../lib/rendererTestHarness");
 
 // Just the IndexedDB surface recordingSpool uses. Rows live in a Map that
 // outlives the module, so seeded rows stand in for a page that died.
-function installFakeIndexedDB(t, seed = []) {
+function installFakeIndexedDB(t, seed = [], reads = []) {
   const keyOf = (row) => [row.sessionId, row.seq];
   const compare = (a, b) => (a[0] === b[0] ? a[1] - b[1] : a[0] < b[0] ? -1 : 1);
   const rows = new Map(seed.map((row) => [JSON.stringify(keyOf(row)), row]));
@@ -27,7 +27,24 @@ function installFakeIndexedDB(t, seed = []) {
       later(() => {
         for (const [key, row] of rows) if (range.includes(keyOf(row))) rows.delete(key);
       }),
-    getAll: () => later(() => [...rows.values()].sort((a, b) => compare(keyOf(a), keyOf(b)))),
+    count: (range) =>
+      later(() => [...rows.values()].filter((row) => !range || range.includes(keyOf(row))).length),
+    openKeyCursor: (range) =>
+      later(() => {
+        const row = [...rows.values()]
+          .sort((a, b) => compare(keyOf(a), keyOf(b)))
+          .find((row) => !range || range.includes(keyOf(row)));
+        return row ? { key: keyOf(row) } : null;
+      }),
+    getAll: (range, limit) => {
+      reads.push({ range, limit });
+      return later(() =>
+        [...rows.values()]
+          .sort((a, b) => compare(keyOf(a), keyOf(b)))
+          .filter((row) => !range || range.includes(keyOf(row)))
+          .slice(0, limit)
+      );
+    },
   };
   const db = { createObjectStore() {}, transaction: () => ({ objectStore: () => store }) };
   const originals = { indexedDB: globalThis.indexedDB, IDBKeyRange: globalThis.IDBKeyRange };
@@ -43,8 +60,11 @@ function installFakeIndexedDB(t, seed = []) {
     },
   };
   globalThis.IDBKeyRange = {
-    bound: (lower, upper) => ({
-      includes: (key) => compare(key, lower) >= 0 && compare(key, upper) <= 0,
+    bound: (lower, upper, lowerOpen = false) => ({
+      includes: (key) => compare(key, lower) >= (lowerOpen ? 1 : 0) && compare(key, upper) <= 0,
+    }),
+    lowerBound: (lower, open = false) => ({
+      includes: (key) => compare(key, lower) >= (open ? 1 : 0),
     }),
   };
   t.after(() => Object.assign(globalThis, originals));
@@ -147,4 +167,60 @@ test("a database that won't open is reported once and the recording goes on unsp
 
   assert.deepEqual(await takeInterruptedRecordings(), []);
   assert.deepEqual(warnings, ["Recording spool unavailable"]);
+});
+
+test("an overnight spool is preserved without loading its blobs and does not block other recovery", async (t) => {
+  const chunk = new Blob(["audio"]);
+  const seed = Array.from({ length: 17000 }, (_, seq) => ({
+    ...deadRow(0, 0, 1000, ""),
+    seq,
+    chunk,
+  }));
+  seed.push({ ...deadRow(0, 0, 2000, "short"), sessionId: "short-page" });
+  const reads = [];
+  const rows = installFakeIndexedDB(t, seed, reads);
+  const { takeInterruptedRecordings, warnings } = await loadSpool(t);
+  const recovered = await takeInterruptedRecordings();
+  assert.equal(recovered.length, 1);
+  assert.equal(await recovered[0].segments[0].text(), "short");
+  assert.ok(
+    reads.every(({ range, limit }) => range && limit <= 128),
+    "every blob read is bounded"
+  );
+  assert.equal(warnings.filter((w) => w.includes("deferred")).length, 1);
+  recovered[0].discard();
+  await settle();
+  assert.equal(rows.size, 17000, "oversized original remains on disk");
+});
+
+test("recovery pages preserve byte order and recorder boundaries", async (t) => {
+  const reads = [];
+  installFakeIndexedDB(
+    t,
+    Array.from({ length: 300 }, (_, seq) => deadRow(seq, seq < 150 ? 0 : 1, 1000 + seq, `${seq},`)),
+    reads
+  );
+  const { takeInterruptedRecordings } = await loadSpool(t);
+  const [recording] = await takeInterruptedRecordings();
+  assert.deepEqual(await Promise.all(recording.segments.map(text)), [
+    Array.from({ length: 150 }, (_, i) => `${i},`).join(""),
+    Array.from({ length: 150 }, (_, i) => `${i + 150},`).join(""),
+  ]);
+  assert.ok(reads.length >= 3);
+  assert.ok(reads.every(({ limit }) => limit <= 128));
+});
+
+test("an oversized blob is left intact without allocating its contents", async (t) => {
+  const row = deadRow(0, 0, 1000, "");
+  row.chunk = {
+    size: 65 * 1024 * 1024,
+    arrayBuffer() {
+      throw new Error("must not allocate");
+    },
+  };
+  const rows = installFakeIndexedDB(t, [row]);
+  const { takeInterruptedRecordings, warnings } = await loadSpool(t);
+  assert.deepEqual(await takeInterruptedRecordings(), []);
+  assert.equal(rows.size, 1);
+  assert.ok(warnings.some((w) => w.includes("deferred")));
 });

@@ -1,5 +1,6 @@
 {
   "extends": "electron-builder.json",
+  "publish": null,
   "extraMetadata": {
     "windowsTrayIdentity": false
   },

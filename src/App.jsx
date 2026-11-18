@@ -108,6 +108,15 @@ export default function App() {
   }, []);
 
   useWindowResizeCompensation();
+  useEffect(() => {
+    // The main process shows this window before the pill has a frame. Ask
+    // again once the page has committed; a paused animation frame must not
+    // be what decides whether the corner stays blank.
+    const timer = setTimeout(() => {
+      void window.electronAPI?.presentDictationSurface?.();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
   useMainProcessNotifications({ toast, dismiss, t });
 
   const agentAllowed = usePolicyStore(isAgentAllowed);
@@ -246,17 +255,18 @@ export default function App() {
   // a menu opening over the compact pill resolves to EXPANDED geometry.
   const windowFitsCompactPill = isRecording || voiceActivity.compactPill;
 
-  const { dictationErrorPillHandoffActive, panelReturnResizeActive } = useMainWindowSizeOwner({
-    requestMainWindowSize,
-    dictationErrorActionCount,
-    toastCount,
-    isCommandMenuOpen,
-    isCompactPill: windowFitsCompactPill,
-    isDictationActive: isRecording || isVisuallyProcessing,
-    liveTranscriptOpen: liveTranscript.open,
-    liveTranscriptMounted: liveTranscript.mounted,
-    liveTranscriptOpenRef: liveTranscript.openRef,
-  });
+  const { dictationErrorPillHandoffActive, panelReturnResizeActive, revealCompactPill } =
+    useMainWindowSizeOwner({
+      requestMainWindowSize,
+      dictationErrorActionCount,
+      toastCount,
+      isCommandMenuOpen,
+      isCompactPill: windowFitsCompactPill,
+      isDictationActive: isRecording || isVisuallyProcessing,
+      liveTranscriptOpen: liveTranscript.open,
+      liveTranscriptMounted: liveTranscript.mounted,
+      liveTranscriptOpenRef: liveTranscript.openRef,
+    });
 
   useEffect(() => {
     if (isCommandMenuOpen || toastCount > 0 || liveTranscript.mounted) {
@@ -287,12 +297,18 @@ export default function App() {
     isRecordingRef.current = isRecording;
   }, [isRecording]);
 
+  const isProcessingRef = useRef(isProcessing);
+  useLayoutEffect(() => {
+    isProcessingRef.current = isProcessing;
+  }, [isProcessing]);
+
   useEffect(() => {
     const unsubscribe = window.electronAPI?.onCancelHotkeyPressed?.(() => {
       if (isRecordingRef.current) cancelRecording();
+      else if (isProcessingRef.current) cancelProcessing();
     });
     return () => unsubscribe?.();
-  }, [cancelRecording]);
+  }, [cancelRecording, cancelProcessing]);
 
   // The Agent companion pill's cancel button routes here: only this renderer
   // owns the recording, so it decides what "cancel" means at arrival time.
@@ -480,7 +496,23 @@ export default function App() {
     dictationErrorActionCount > 0 || dictationErrorPillHandoffActive;
   // The pill hides while a dictation error owns the window and through the
   // masked shrink back from the Live Transcript panel.
-  const pillVisuallySuppressed = dictationErrorSuppressesPill || panelReturnResizeActive;
+  const pillVisuallySuppressed =
+    !revealCompactPill && (dictationErrorSuppressesPill || panelReturnResizeActive);
+  const pillWasSuppressedRef = useRef(false);
+  useEffect(() => {
+    if (pillVisuallySuppressed) {
+      pillWasSuppressedRef.current = true;
+      return undefined;
+    }
+    if (!pillWasSuppressedRef.current) return undefined;
+    pillWasSuppressedRef.current = false;
+    // Shrinking the transparent window rebuilds an empty surface while the
+    // pill is hidden. The show-time present does not run again here.
+    const timer = setTimeout(() => {
+      void window.electronAPI?.presentDictationSurface?.();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [pillVisuallySuppressed]);
 
   useLinuxPillInteractivity({
     pillRef: pillPresenceRef,

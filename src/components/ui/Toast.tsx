@@ -288,8 +288,11 @@ const Toast: React.FC<
     // acknowledgment can be delayed or skipped when another panel is handing
     // off the same BrowserWindow, so always reveal the already-mounted card
     // after a short grace period instead of leaving it permanently transparent.
+    // requestAnimationFrame does not run while this transparent window is
+    // occluded, so the card stayed at opacity 0 and the pill stayed hidden
+    // with it. The timeout itself is the reveal.
     const fallbackTimer = setTimeout(() => {
-      requestAnimationFrame(() => setErrorSurfaceReady(true));
+      setErrorSurfaceReady(true);
     }, 240);
     return () => clearTimeout(fallbackTimer);
   }, [errorSurfaceReady, presentation]);
